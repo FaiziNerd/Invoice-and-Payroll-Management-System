@@ -4,8 +4,10 @@ import type { InvoiceStatus, PayrollStatus } from "@/types";
 const invoiceStatusMap: Record<InvoiceStatus, { label: string; variant: "default" | "secondary" | "success" | "warning" | "destructive" }> = {
   draft: { label: "Draft", variant: "secondary" },
   sent: { label: "Sent", variant: "default" },
+  partially_paid: { label: "Partially Paid", variant: "warning" },
   paid: { label: "Paid", variant: "success" },
   overdue: { label: "Overdue", variant: "destructive" },
+  void: { label: "Void", variant: "secondary" },
 };
 
 const payrollStatusMap: Record<PayrollStatus, { label: string; variant: "default" | "secondary" | "success" | "warning" }> = {

@@ -1,5 +1,4 @@
 import type { InvoiceTemplate, TemplateBranding } from "@/types";
-import { addAuditLog } from "@/lib/audit";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/fetch";
 import { notifyDataChange } from "@/lib/data/events";
 
@@ -81,9 +80,17 @@ function enforceSingleDefault(id: string): void {
   }));
 }
 
-export async function loadTemplatesFromApi(): Promise<InvoiceTemplate[]> {
+export async function restoreTemplate(id: string): Promise<InvoiceTemplate> {
+  const template = await apiPatch<InvoiceTemplate>(`/api/templates/${id}`, { restore: true });
+  upsertCache(template);
+  notifyDataChange("templates");
+  return template;
+}
+
+export async function loadTemplatesFromApi(trash = false): Promise<InvoiceTemplate[]> {
   try {
-    templatesCache = await apiGet<InvoiceTemplate[]>("/api/templates");
+    const suffix = trash ? "?trash=true" : "";
+    templatesCache = await apiGet<InvoiceTemplate[]>(`/api/templates${suffix}`);
     return templatesCache;
   } catch {
     templatesCache = [];
@@ -125,15 +132,6 @@ export async function createTemplate(
   }
   notifyDataChange("templates");
 
-  addAuditLog({
-    action: "create",
-    entity: "template",
-    entityId: template.id,
-    userId,
-    userName,
-    description: `Created template ${template.name}`,
-  });
-
   return template;
 }
 
@@ -150,15 +148,6 @@ export async function updateTemplate(
       enforceSingleDefault(template.id);
     }
     notifyDataChange("templates");
-
-    addAuditLog({
-      action: "update",
-      entity: "template",
-      entityId: id,
-      userId,
-      userName,
-      description: `Updated template ${template.name}`,
-    });
 
     return template;
   } catch (error) {
@@ -179,15 +168,6 @@ export async function publishTemplate(
     upsertCache(template);
     notifyDataChange("templates");
 
-    addAuditLog({
-      action: "update",
-      entity: "template",
-      entityId: id,
-      userId,
-      userName,
-      description: `Published template ${template.name}`,
-    });
-
     return template;
   } catch (error) {
     if (error instanceof Error && error.message.toLowerCase().includes("not found")) {
@@ -207,15 +187,6 @@ export async function deleteTemplate(
   removeFromCache(id);
   notifyDataChange("templates");
 
-  addAuditLog({
-    action: "delete",
-    entity: "template",
-    entityId: id,
-    userId,
-    userName,
-    description: `Deleted template ${template?.name ?? id}`,
-  });
-
   return true;
 }
 
@@ -228,15 +199,6 @@ export async function duplicateTemplate(
     const duplicated = await apiPost<InvoiceTemplate>(`/api/templates/${id}/duplicate`);
     upsertCache(duplicated);
     notifyDataChange("templates");
-
-    addAuditLog({
-      action: "create",
-      entity: "template",
-      entityId: duplicated.id,
-      userId,
-      userName,
-      description: `Duplicated template ${duplicated.name}`,
-    });
 
     return duplicated;
   } catch (error) {

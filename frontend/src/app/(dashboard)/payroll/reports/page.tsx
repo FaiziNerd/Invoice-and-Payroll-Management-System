@@ -14,7 +14,7 @@ import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { exportToCSV } from "@/lib/csv";
 import { useAuth } from "@/providers/auth-provider";
-import { addAuditLog } from "@/lib/audit";
+import { recordExportAudit } from "@/lib/audit";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -89,13 +89,7 @@ export default function PayrollReportsPage() {
       { key: "status", label: "Status" },
     ], "payroll-history.csv");
     if (session) {
-      addAuditLog({
-        action: "export",
-        entity: "payroll",
-        userId: session.userId,
-        userName: session.name,
-        description: "Exported full payroll history CSV",
-      });
+      void recordExportAudit("payroll", "Exported full payroll history CSV");
     }
     toast.success("Payroll history exported");
   };

@@ -27,7 +27,9 @@ export interface EmployeeRow {
   join_date: string;
   status: "active" | "inactive";
   salary_base: number | string;
+  user_id?: string | null;
   created_at: string;
+  deleted_at?: string | null;
   employee_allowances?: EmployeeAllowanceRow[] | null;
   employee_deductions?: EmployeeDeductionRow[] | null;
 }
@@ -72,6 +74,8 @@ export function rowToEmployee(row: EmployeeRow): Employee {
       deductions: (row.employee_deductions ?? []).map(rowToDeduction),
     },
     createdAt: row.created_at,
+    deletedAt: row.deleted_at ?? undefined,
+    userId: row.user_id ?? undefined,
   };
 }
 

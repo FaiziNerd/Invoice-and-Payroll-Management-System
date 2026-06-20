@@ -28,8 +28,10 @@ import {
   createClient,
   updateClient,
   deleteClient,
+  restoreClient,
 } from "@/lib/repositories/clients";
-import { useClients } from "@/hooks/use-clients";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -44,7 +46,17 @@ type SortDir = "asc" | "desc";
 
 export default function ClientsPage() {
   const { session } = useAuth();
-  const { clients, isLoading } = useClients();
+  const companyReady = useCompanyDataReady();
+  const [view, setView] = useState<"active" | "trash">("active");
+  const {
+    items: clients,
+    loading: listLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    refresh,
+  } = usePaginatedList<Client>("/api/clients", { trash: view === "trash" });
+  const isLoading = !companyReady || listLoading;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -103,13 +115,14 @@ export default function ClientsPage() {
     }
     try {
       if (editing) {
-        await updateClient(editing.id, form, session.userId, session.name);
+        await updateClient(editing.id, form);
         toast.success("Client updated");
       } else {
-        await createClient(form, session.userId, session.name);
+        await createClient(form);
         toast.success("Client created");
       }
       setDialogOpen(false);
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save client");
     }
@@ -118,9 +131,10 @@ export default function ClientsPage() {
   const confirmDelete = async () => {
     if (!session || !deleteTarget) return;
     try {
-      await deleteClient(deleteTarget.id, session.userId, session.name);
-      toast.success("Client deleted");
+      await deleteClient(deleteTarget.id);
+      toast.success("Client moved to trash");
       setDeleteTarget(null);
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete client");
     }
@@ -132,7 +146,17 @@ export default function ClientsPage() {
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
         <PageHeader title="Clients" description="Manage customer records">
-          <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Client</Button>
+          <div className="flex gap-2">
+            <Button variant={view === "active" ? "default" : "outline"} onClick={() => setView("active")}>
+              Active
+            </Button>
+            <Button variant={view === "trash" ? "default" : "outline"} onClick={() => setView("trash")}>
+              Trash
+            </Button>
+            {view === "active" && (
+              <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Client</Button>
+            )}
+          </div>
         </PageHeader>
 
         <Card>
@@ -178,22 +202,38 @@ export default function ClientsPage() {
                           <TableCell>{client.address}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Edit ${client.name}`}
-                                onClick={() => openEdit(client)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Delete ${client.name}`}
-                                onClick={() => setDeleteTarget(client)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {view === "trash" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    await restoreClient(client.id);
+                                    toast.success("Client restored");
+                                    await refresh();
+                                  }}
+                                >
+                                  Restore
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Edit ${client.name}`}
+                                    onClick={() => openEdit(client)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Delete ${client.name}`}
+                                    onClick={() => setDeleteTarget(client)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -237,6 +277,13 @@ export default function ClientsPage() {
                   totalPages={totalPages}
                   onPageChange={setPage}
                 />
+                {hasMore && (
+                  <div className="flex justify-center pt-2">
+                    <Button variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
+                      {loadingMore ? "Loading..." : "Load more"}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </CardContent>

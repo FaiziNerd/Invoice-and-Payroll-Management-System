@@ -1,30 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  getInvoices,
-  getInvoicesNeedingReminder,
   sendInvoiceEmail,
 } from "@/lib/repositories/invoices";
-import { getPayrollRuns } from "@/lib/repositories/payroll";
 import { useClients } from "@/hooks/use-clients";
-import { getEmployees } from "@/lib/repositories/employees";
-import { getDepartments } from "@/lib/repositories/departments";
-import { computeInvoiceAging } from "@/lib/invoices/aging";
-import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
+import { useDashboardAnalytics } from "@/hooks/use-dashboard-analytics";
 import { KpiSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
-import {
-  computeMoMChange,
-  computeDepartmentPayroll,
-  generateDashboardInsights,
-  getCurrentAndPreviousMonth,
-  getMonthTotals,
-  monthKey,
-} from "@/lib/analytics/dashboard";
 import dynamic from "next/dynamic";
 
 const RevenueChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.RevenueChart), { ssr: false });
@@ -46,7 +33,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV, generateCSV } from "@/lib/csv";
-import { addAuditLog } from "@/lib/audit";
+import { recordExportAudit } from "@/lib/audit";
 
 import {
   Table,
@@ -92,93 +79,47 @@ export default function DashboardPage() {
   const [reminderInvoice, setReminderInvoice] = useState<Invoice | null>(null);
 
   const companyReady = useCompanyDataReady();
-  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
-  const payrollRuns = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
-  const { clients } = useClients();
-  const employees = useStorageData(() => getEmployees(), ["employees"]);
-  const departments = useStorageData(() => getDepartments(), ["departments"]);
-
-  const paidInvoices = useMemo(() => invoices.filter((i) => i.status === "paid"), [invoices]);
-  const overdueInvoices = useMemo(() => invoices.filter((i) => i.status === "overdue"), [invoices]);
-  const sentInvoices = useMemo(() => invoices.filter((i) => i.status === "sent"), [invoices]);
-  const reminderCandidates = useStorageData(() => getInvoicesNeedingReminder(), ["invoices"]);
-
-  const totalRevenue = useMemo(() => paidInvoices.reduce((s, i) => s + i.total, 0), [paidInvoices]);
-  const outstanding = useMemo(() => [...overdueInvoices, ...sentInvoices].reduce((s, i) => s + i.total, 0), [overdueInvoices, sentInvoices]);
-  const totalPayroll = useMemo(() => payrollRuns
-    .filter((r) => r.status === "paid" || r.status === "processed")
-    .reduce((s, r) => s + r.totalNet, 0), [payrollRuns]);
-
-  const monthTotals = useMemo(
-    () => getMonthTotals(invoices, payrollRuns),
-    [invoices, payrollRuns]
-  );
-  const { current: currentMonth, previous: prevMonth } = useMemo(() => getCurrentAndPreviousMonth(monthTotals), [monthTotals]);
-
-  const revenueMoM = useMemo(() => computeMoMChange(currentMonth?.revenue ?? 0, prevMonth?.revenue ?? 0), [currentMonth, prevMonth]);
-  const outstandingMoM = useMemo(() => computeMoMChange(
-    [...overdueInvoices, ...sentInvoices]
-      .filter((inv) => monthKey(inv.issueDate) === currentMonth?.key)
-      .reduce((s, i) => s + i.total, 0),
-    [...overdueInvoices, ...sentInvoices]
-      .filter((inv) => monthKey(inv.issueDate) === prevMonth?.key)
-      .reduce((s, i) => s + i.total, 0)
-  ), [overdueInvoices, sentInvoices, currentMonth, prevMonth]);
-  const payrollMoM = useMemo(() => computeMoMChange(currentMonth?.payroll ?? 0, prevMonth?.payroll ?? 0), [currentMonth, prevMonth]);
-  const marginMoM = useMemo(() => computeMoMChange(currentMonth?.margin ?? 0, prevMonth?.margin ?? 0), [currentMonth, prevMonth]);
-
-  const netMarginTrend = useMemo(() => monthTotals.map((m) => ({
-    month: m.label,
-    margin: m.margin,
-  })), [monthTotals]);
-
-  const deptChartData = useMemo(
-    () => computeDepartmentPayroll(payrollRuns, employees, departments),
-    [payrollRuns, employees, departments]
-  );
-
-  const dashboardInsights = useMemo(
-    () =>
-      generateDashboardInsights(
-        invoices,
-        clients,
-        revenueMoM,
-        overdueInvoices.length,
-        overdueInvoices.reduce((s, i) => s + i.total, 0)
-      ),
-    [invoices, clients, revenueMoM, overdueInvoices]
-  );
-
-  const revenueByMonth = useMemo(() => {
-    return monthTotals.map((m) => ({
-      month: m.label,
-      revenue: m.revenue,
-    }));
-  }, [monthTotals]);
-
-  const invoiceStatusData = useMemo(() => [
-    { name: "Paid", value: paidInvoices.length },
-    { name: "Sent", value: sentInvoices.length },
-    { name: "Overdue", value: overdueInvoices.length },
-    { name: "Draft", value: invoices.filter((i) => i.status === "draft").length },
-  ], [paidInvoices, sentInvoices, overdueInvoices, invoices]);
-
-  const agingData = useMemo(() => computeInvoiceAging(invoices), [invoices]);
-
-  const payrollTrend = useMemo(() => payrollRuns
-    .slice(0, 6)
-    .reverse()
-    .map((r) => ({
-      month: `${r.month}/${r.year}`,
-      expense: r.totalNet,
-    })), [payrollRuns]);
-
   const showInvoiceWidgets = hasRole("admin", "accountant");
   const showPayrollWidgets = hasRole("admin", "hr", "accountant");
   const showNetMargin = showInvoiceWidgets && showPayrollWidgets;
+  const analyticsEnabled = companyReady && (showInvoiceWidgets || showPayrollWidgets);
+  const { data: analytics, loading: analyticsLoading } = useDashboardAnalytics(analyticsEnabled);
+  const { clients } = useClients();
 
-  const handleSendReminder = (invoice: Invoice) => {
-    setReminderInvoice(invoice);
+  const totalRevenue = analytics?.totalRevenue ?? 0;
+  const outstanding = analytics?.outstanding ?? 0;
+  const totalPayroll = analytics?.totalPayroll ?? 0;
+  const revenueMoM = analytics?.revenueMoM ?? null;
+  const outstandingMoM = analytics?.outstandingMoM ?? null;
+  const payrollMoM = analytics?.payrollMoM ?? null;
+  const marginMoM = analytics?.marginMoM ?? null;
+  const netMarginTrend = analytics?.netMarginTrend ?? [];
+  const deptChartData = analytics?.deptChartData ?? [];
+  const dashboardInsights = analytics?.insights ?? [];
+  const revenueByMonth = analytics?.revenueByMonth ?? [];
+  const invoiceStatusData = analytics?.invoiceStatusData ?? [];
+  const agingData = analytics?.agingData ?? [];
+  const payrollTrend = analytics?.payrollTrend ?? [];
+  const reminderCandidates = analytics?.reminderCandidates ?? [];
+  const outstandingExportRows = analytics?.outstandingExportRows ?? [];
+  const overdueInvoices = outstandingExportRows.filter((row) => row.status === "overdue");
+  const sentInvoices = outstandingExportRows.filter((row) => row.status === "sent");
+  const paidInvoicesCount =
+    invoiceStatusData.find((row) => row.name === "Paid")?.value ?? 0;
+  const isLoading = !companyReady || analyticsLoading;
+
+  const handleSendReminder = async (candidate: {
+    id: string;
+    clientId: string;
+  }) => {
+    try {
+      const res = await fetch(`/api/invoices/${candidate.id}`, { credentials: "include" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Failed to load invoice");
+      setReminderInvoice(json.data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load invoice");
+    }
   };
 
   const handleReminderConfirm = async () => {
@@ -206,7 +147,7 @@ export default function DashboardPage() {
       return {
         invoiceNumber: inv.invoiceNumber,
         client: client?.name || "Unknown",
-        amount: inv.total,
+        amount: inv.amount,
         status: inv.status,
         dueDate: inv.dueDate,
       };
@@ -219,13 +160,7 @@ export default function DashboardPage() {
       { key: "dueDate", label: "Due Date" },
     ], "outstanding-payments.csv");
     if (session) {
-      addAuditLog({
-        action: "export",
-        entity: "dashboard",
-        userId: session.userId,
-        userName: session.name,
-        description: "Exported outstanding payments CSV",
-      });
+      void recordExportAudit("dashboard", "Exported outstanding payments CSV");
     }
   };
 
@@ -294,7 +229,7 @@ export default function DashboardPage() {
             return {
               invoiceNumber: inv.invoiceNumber,
               client: client?.name || "Unknown",
-              amount: inv.total,
+              amount: inv.amount,
               status: inv.status,
               dueDate: inv.dueDate,
             };
@@ -329,13 +264,7 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url);
 
     if (session) {
-      addAuditLog({
-        action: "export",
-        entity: "dashboard",
-        userId: session.userId,
-        userName: session.name,
-        description: "Exported full dashboard data",
-      });
+      void recordExportAudit("dashboard", "Exported full dashboard data");
     }
   };
 
@@ -354,7 +283,7 @@ export default function DashboardPage() {
         </Button>
       </PageHeader>
 
-      {!companyReady ? (
+      {!isLoading ? (
         <KpiSkeleton />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -368,7 +297,7 @@ export default function DashboardPage() {
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-muted-foreground">{paidInvoices.length} paid invoices</p>
+                    <p className="text-xs text-muted-foreground">{paidInvoicesCount} paid invoices</p>
                     <MoMBadge change={revenueMoM} />
                   </div>
                 </CardContent>
@@ -399,7 +328,7 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(totalPayroll)}</div>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">{payrollRuns.length} payroll runs</p>
+                  <p className="text-xs text-muted-foreground">{payrollTrend.length} recent payroll runs</p>
                   <MoMBadge change={payrollMoM} />
                 </div>
               </CardContent>
@@ -551,7 +480,7 @@ export default function DashboardPage() {
                 <div role="img" aria-label="Invoice analytics donut chart showing breakdown by status">
                   <span className="sr-only">
                     Invoice status breakdown: {invoiceStatusData.map((d) => `${d.name}: ${d.value}`).join(", ")}.
-                    Total invoices: {invoices.length}.
+                    Total invoices: {invoiceStatusData.reduce((sum, row) => sum + row.value, 0)}.
                   </span>
                   <InvoiceAnalyticsChart data={invoiceStatusData} />
                 </div>
@@ -670,8 +599,8 @@ export default function DashboardPage() {
                           </Link>
                         </TableCell>
                         <TableCell>{client?.name}</TableCell>
-                        <TableCell>{formatCurrency(inv.total)}</TableCell>
-                        <TableCell><InvoiceStatusBadge status={inv.status} /></TableCell>
+                        <TableCell>{formatCurrency(inv.amount)}</TableCell>
+                        <TableCell><InvoiceStatusBadge status={inv.status as Invoice["status"]} /></TableCell>
                         <TableCell>{new Date(inv.dueDate).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -697,11 +626,11 @@ export default function DashboardPage() {
                       <Link href={`/invoices/${inv.id}`} className="font-medium text-primary">
                         {inv.invoiceNumber}
                       </Link>
-                      <InvoiceStatusBadge status={inv.status} />
+                      <InvoiceStatusBadge status={inv.status as Invoice["status"]} />
                     </div>
                     <p className="text-sm text-muted-foreground">{client?.name}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <p className="font-semibold">{formatCurrency(inv.total)}</p>
+                      <p className="font-semibold">{formatCurrency(inv.amount)}</p>
                       <Button variant="outline" size="sm" onClick={() => handleSendReminder(inv)}>
                         <Bell className="h-3 w-3" /> Remind
                       </Button>

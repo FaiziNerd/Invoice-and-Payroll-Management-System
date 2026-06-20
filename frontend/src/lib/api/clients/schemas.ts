@@ -10,7 +10,9 @@ export const clientFieldsSchema = z.object({
 
 export const createClientSchema = clientFieldsSchema;
 
-export const updateClientSchema = clientFieldsSchema.partial().refine(
+export const updateClientSchema = clientFieldsSchema.partial().extend({
+  restore: z.boolean().optional(),
+}).refine(
   (data) => Object.keys(data).length > 0,
   { message: "At least one field is required" }
 );

@@ -69,6 +69,12 @@ const navGroups: NavGroup[] = [
       { label: "Settings", href: "/admin/settings", icon: Settings, roles: ["admin"] },
     ],
   },
+  {
+    label: "Self Service",
+    items: [
+      { label: "My Portal", href: "/portal", icon: UserCircle, roles: ["employee"] },
+    ],
+  },
 ];
 
 export function Sidebar() {

@@ -1,10 +1,12 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import type { Session, UserRole } from "@/types";
+import type { Session, UserRole, MemberStatus } from "@/types";
 import { ACTIVE_COMPANY_COOKIE } from "./constants";
 
 interface CompanyMemberRow {
   company_id: string;
   role: UserRole;
+  status: MemberStatus;
+  employee_id: string | null;
 }
 
 interface ProfileRow {
@@ -18,18 +20,25 @@ export async function resolveActiveCompanyId(
   userId: string,
   cookieCompanyId?: string
 ): Promise<string | null> {
-  const { data: memberships } = await supabase
+  const { data: memberships, error } = await supabase
     .from("company_members")
-    .select("company_id")
+    .select("company_id, status")
     .eq("user_id", userId);
 
-  if (!memberships?.length) return null;
+  if (error || !memberships?.length) {
+    return null;
+  }
 
-  if (cookieCompanyId && memberships.some((m) => m.company_id === cookieCompanyId)) {
+  const active = memberships.filter((m) => (m.status ?? "active") === "active");
+  if (active.length === 0) {
+    return memberships[0]?.company_id ?? null;
+  }
+
+  if (cookieCompanyId && active.some((m) => m.company_id === cookieCompanyId)) {
     return cookieCompanyId;
   }
 
-  return memberships[0].company_id;
+  return active[0].company_id;
 }
 
 export async function buildAppSession(
@@ -58,15 +67,16 @@ export async function buildAppSession(
       name: profile.name,
       role: "accountant",
       companyId: "",
+      memberStatus: "pending",
     };
   }
 
   const { data: membership } = await supabase
     .from("company_members")
-    .select("role")
+    .select("role, status, employee_id")
     .eq("user_id", authUser.id)
     .eq("company_id", companyId)
-    .maybeSingle<Pick<CompanyMemberRow, "role">>();
+    .maybeSingle<Pick<CompanyMemberRow, "role" | "status" | "employee_id">>();
 
   return {
     userId: profile.id,
@@ -74,6 +84,8 @@ export async function buildAppSession(
     name: profile.name,
     role: membership?.role ?? "accountant",
     companyId,
+    memberStatus: (membership?.status ?? "active") as MemberStatus,
+    employeeId: membership?.employee_id ?? undefined,
   };
 }
 

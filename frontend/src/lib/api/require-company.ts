@@ -6,17 +6,20 @@ import {
   readActiveCompanyCookie,
   resolveActiveCompanyId,
 } from "@/lib/auth/server-session";
-import type { UserRole } from "@/types";
+import type { MemberStatus, UserRole } from "@/types";
 
 export type CompanyContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
   user: User;
   companyId: string;
   role: UserRole;
+  memberStatus: MemberStatus;
+  employeeId?: string;
 };
 
 export async function requireCompanyContext(options?: {
   roles?: UserRole[];
+  allowPending?: boolean;
 }): Promise<{ ctx: CompanyContext } | { error: ReturnType<typeof fail> }> {
   const supabase = await createClient();
   const {
@@ -43,7 +46,7 @@ export async function requireCompanyContext(options?: {
 
   const { data: membership, error } = await supabase
     .from("company_members")
-    .select("role")
+    .select("role, status, employee_id")
     .eq("user_id", user.id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -56,11 +59,31 @@ export async function requireCompanyContext(options?: {
     return { error: fail("FORBIDDEN", "You are not a member of this company", 403) };
   }
 
+  const memberStatus = (membership.status ?? "active") as MemberStatus;
+  if (memberStatus === "pending" && !options?.allowPending) {
+    return {
+      error: fail(
+        "FORBIDDEN",
+        "Your account is pending admin approval",
+        403
+      ),
+    };
+  }
+
   const role = membership.role as UserRole;
 
   if (options?.roles && !options.roles.includes(role)) {
     return { error: fail("FORBIDDEN", "Insufficient permissions", 403) };
   }
 
-  return { ctx: { supabase, user, companyId, role } };
+  return {
+    ctx: {
+      supabase,
+      user,
+      companyId,
+      role,
+      memberStatus,
+      employeeId: membership.employee_id ?? undefined,
+    },
+  };
 }

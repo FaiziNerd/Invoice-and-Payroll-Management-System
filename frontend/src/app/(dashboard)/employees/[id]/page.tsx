@@ -76,6 +76,27 @@ export default function EmployeeDetailPage({
   const deductions = calculateTotalDeductions(salaryStructure);
   const net = calculateNetPay(salaryStructure);
 
+  const sendPortalInvite = async () => {
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: employee.email,
+          role: "employee",
+          employeeId: employee.id,
+          expiresInDays: 7,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Failed to create invite");
+      toast.success(`Portal invite created for ${employee.email}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create invite");
+    }
+  };
+
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
@@ -96,6 +117,11 @@ export default function EmployeeDetailPage({
             <Button variant="outline" size="sm" asChild>
               <Link href={`/employees/${id}/edit`}><Pencil className="h-4 w-4" /> Edit</Link>
             </Button>
+            {!employee.userId && (
+              <Button variant="outline" size="sm" onClick={() => void sendPortalInvite()}>
+                Send portal invite
+              </Button>
+            )}
           </div>
         </PageHeader>
 

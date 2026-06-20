@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
-  "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, created_at, employee_allowances(id, employee_id, name, amount), employee_deductions(id, employee_id, name, amount)";
+  "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, user_id, created_at, deleted_at, employee_allowances(id, employee_id, name, amount), employee_deductions(id, employee_id, name, amount)";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -81,6 +81,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (parsed.data.position !== undefined) updates.position = parsed.data.position || null;
   if (parsed.data.joinDate !== undefined) updates.join_date = parsed.data.joinDate;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+  if (parsed.data.restore === true) {
+    updates.deleted_at = null;
+  }
   if (parsed.data.salaryStructure?.baseSalary !== undefined) {
     updates.salary_base = parsed.data.salaryStructure.baseSalary;
   }
@@ -161,19 +164,14 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     return fail("INTERNAL_ERROR", guardError.message, 500);
   }
 
-  if ((count ?? 0) > 0) {
-    return fail(
-      "CONFLICT",
-      "Cannot delete this employee because they appear in one or more payroll runs.",
-      409
-    );
-  }
+  void count;
 
   const { error } = await supabase
     .from("employees")
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("company_id", companyId);
+    .eq("company_id", companyId)
+    .is("deleted_at", null);
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);

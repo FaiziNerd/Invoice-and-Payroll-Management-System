@@ -10,27 +10,48 @@ import {
   type EmployeeDeductionRow,
   type EmployeeRow,
 } from "@/lib/api/employees/mappers";
+import {
+  applyCursorFilter,
+  applySoftDeleteFilter,
+  buildPaginatedResponse,
+  parseListParams,
+} from "@/lib/api/pagination";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
-  "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, created_at, employee_allowances(id, employee_id, name, amount), employee_deductions(id, employee_id, name, amount)";
+  "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, user_id, created_at, deleted_at, employee_allowances(id, employee_id, name, amount), employee_deductions(id, employee_id, name, amount)";
 
-export async function GET() {
-  const result = await requireCompanyContext();
+export async function GET(request: Request) {
+  const result = await requireCompanyContext({ roles: ["admin", "hr", "accountant"] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, role, employeeId } = result.ctx;
 
-  const { data, error } = await supabase
+  const url = new URL(request.url);
+  const { limit, cursor, includeDeleted, trashOnly } = parseListParams(url);
+
+  let query = supabase
     .from("employees")
     .select(EMPLOYEE_SELECT)
     .eq("company_id", companyId)
-    .order("first_name", { ascending: true });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  if (role === "employee" && employeeId) {
+    query = query.eq("id", employeeId);
+  }
+
+  query = applySoftDeleteFilter(query, { includeDeleted, trashOnly });
+  query = applyCursorFilter(query, cursor);
+
+  const { data, error } = await query;
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
-  return ok(((data ?? []) as EmployeeRow[]).map(rowToEmployee));
+  const mapped = ((data ?? []) as EmployeeRow[]).map(rowToEmployee);
+  return ok(buildPaginatedResponse(mapped, limit));
 }
 
 export async function POST(request: Request) {
@@ -61,7 +82,7 @@ export async function POST(request: Request) {
       ...employeeFieldsToRow(parsed.data),
     })
     .select(
-      "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, created_at"
+      "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, user_id, created_at, deleted_at"
     )
     .single();
 

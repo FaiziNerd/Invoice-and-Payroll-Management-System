@@ -3,6 +3,7 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { sendInvoiceEmailSchema } from "@/lib/api/invoices/send-email-schema";
 import {
   rowToInvoice,
+  INVOICE_SELECT,
   type InvoiceHistoryRow,
   type InvoiceItemRow,
   type InvoiceRow,
@@ -16,6 +17,7 @@ import {
   EmailDeliveryError,
   EmailNotConfiguredError,
 } from "@/lib/server/send-invoice-email";
+import { generateInvoicePdfBuffer } from "@/lib/server/generate-invoice-pdf";
 import { recordAuditLog } from "@/lib/server/record-audit-log";
 
 export const runtime = "nodejs";
@@ -68,7 +70,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   const { data: row, error: fetchError } = await supabase
     .from("invoices")
     .select(
-      "id, company_id, invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, template_id, share_token, issue_date, due_date, notes, created_at, updated_at, invoice_items(id, invoice_id, description, quantity, unit_price, amount), invoice_history(id, invoice_id, action, timestamp, user_id, user_name), clients(id, name, email)"
+      INVOICE_SELECT +
+        ", invoice_items(id, invoice_id, description, quantity, unit_price, amount), invoice_history(id, invoice_id, action, timestamp, user_id, user_name), clients(id, name, email)"
     )
     .eq("id", id)
     .eq("company_id", companyId)
@@ -77,8 +80,9 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (fetchError) return fail("INTERNAL_ERROR", fetchError.message, 500);
   if (!row) return fail("NOT_FOUND", "Invoice not found", 404);
 
-  const invoiceRow = row as InvoiceWithClient;
-  const client = invoiceRow.clients;
+  const invoiceRow = row as unknown as InvoiceWithClient;
+  const clientRaw = invoiceRow.clients;
+  const client = Array.isArray(clientRaw) ? clientRaw[0] : clientRaw;
   if (!client?.email) {
     return fail("VALIDATION_ERROR", "Client email address is required", 400);
   }
@@ -94,18 +98,27 @@ export async function POST(request: Request, { params }: RouteContext) {
   const mode = parsed.data.mode;
 
   try {
-    const delivery = await deliverInvoiceEmail({
-      invoiceNumber: invoiceRow.invoice_number,
-      total: Number(invoiceRow.total),
-      issueDate: invoiceRow.issue_date,
-      dueDate: invoiceRow.due_date,
-      notes: invoiceRow.notes,
-      clientName: client.name,
-      clientEmail: client.email,
-      companyName,
-      shareUrl,
-      mode,
-    });
+    const { buffer: pdfBuffer, filename: pdfFilename } = await generateInvoicePdfBuffer(
+      supabase,
+      companyId,
+      id
+    );
+
+    const delivery = await deliverInvoiceEmail(
+      {
+        invoiceNumber: invoiceRow.invoice_number,
+        total: Number(invoiceRow.total),
+        issueDate: invoiceRow.issue_date,
+        dueDate: invoiceRow.due_date,
+        notes: invoiceRow.notes,
+        clientName: client.name,
+        clientEmail: client.email,
+        companyName,
+        shareUrl,
+        mode,
+      },
+      { filename: pdfFilename, content: pdfBuffer }
+    );
 
     const historyAction = invoiceEmailHistoryAction(mode, client.email);
     const userName = parsed.data.userName?.trim() || "User";

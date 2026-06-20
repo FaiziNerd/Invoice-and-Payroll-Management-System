@@ -101,6 +101,8 @@ export default function PublicInvoicePage({
           taxRate: Number(payload.invoice.tax_rate ?? 0),
           taxAmount: Number(payload.invoice.tax_amount ?? 0),
           total: Number(payload.invoice.total ?? 0),
+          amountPaid: 0,
+          paymentVariance: "none",
           status: payload.invoice.status,
           templateId: "public-template",
           shareToken: token,

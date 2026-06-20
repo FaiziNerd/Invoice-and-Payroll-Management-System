@@ -3,6 +3,11 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { createPayrollRunSchema } from "@/lib/api/payroll/schemas";
 import { rowToPayrollRun, type PayrollRunRow } from "@/lib/api/payroll/mappers";
 import { rowToEmployee, type EmployeeRow } from "@/lib/api/employees/mappers";
+import {
+  applyCursorFilter,
+  buildPaginatedResponse,
+  parseListParams,
+} from "@/lib/api/pagination";
 
 const WRITE_ROLES = ["admin", "accountant", "hr"] as const;
 const RUN_SELECT =
@@ -10,23 +15,32 @@ const RUN_SELECT =
 const EMPLOYEE_SNAPSHOT_SELECT =
   "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, created_at, employee_allowances(id, employee_id, name, amount), employee_deductions(id, employee_id, name, amount)";
 
-export async function GET() {
-  const result = await requireCompanyContext();
+export async function GET(request: Request) {
+  const result = await requireCompanyContext({ roles: ["admin", "accountant", "hr"] });
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
 
-  const { data, error } = await supabase
+  const url = new URL(request.url);
+  const { limit, cursor } = parseListParams(url);
+
+  let query = supabase
     .from("payroll_runs")
     .select(RUN_SELECT)
     .eq("company_id", companyId)
-    .order("year", { ascending: false })
-    .order("month", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  query = applyCursorFilter(query, cursor);
+
+  const { data, error } = await query;
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
-  return ok(((data ?? []) as PayrollRunRow[]).map(rowToPayrollRun));
+  const mapped = ((data ?? []) as PayrollRunRow[]).map(rowToPayrollRun);
+  return ok(buildPaginatedResponse(mapped, limit));
 }
 
 export async function POST(request: Request) {

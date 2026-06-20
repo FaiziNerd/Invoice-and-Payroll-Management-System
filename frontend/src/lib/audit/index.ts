@@ -1,5 +1,5 @@
 export {
   getAuditLogs,
   loadAuditLogsFromApi,
-  addAuditLog,
+  recordExportAudit,
 } from "@/lib/repositories/audit";

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { rowToSettings, settingsFieldsToRow } from "@/lib/api/settings/mappers";
+import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -45,7 +46,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -63,6 +64,12 @@ export async function PATCH(request: Request) {
     );
   }
 
+  const { data: before } = await supabase
+    .from("organization_settings")
+    .select("company_id, name, address, default_template_id")
+    .eq("company_id", companyId)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from("organization_settings")
     .upsert(
@@ -78,6 +85,29 @@ export async function PATCH(request: Request) {
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
+
+  const actorName = await getActorName(supabase, user.id);
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "update",
+    entity: "organization_settings",
+    entityId: companyId,
+    description: "Updated organization settings",
+    metadata: buildDiff(
+      {
+        name: before?.name,
+        address: before?.address,
+        defaultTemplateId: before?.default_template_id,
+      },
+      {
+        name: data.name,
+        address: data.address,
+        defaultTemplateId: data.default_template_id,
+      }
+    ),
+  });
 
   return ok(rowToSettings(data));
 }

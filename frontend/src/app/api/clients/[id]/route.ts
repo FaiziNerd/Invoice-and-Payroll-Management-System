@@ -5,6 +5,7 @@ import { clientFieldsToRow, rowToClient } from "@/lib/api/clients/mappers";
 import { recordAuditLog } from "@/lib/server/record-audit-log";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
+const CLIENT_SELECT = "id, company_id, name, email, phone, address, created_at, deleted_at";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,7 +17,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { data, error } = await supabase
     .from("clients")
-    .select("id, company_id, name, email, phone, address, created_at")
+    .select(CLIENT_SELECT)
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -63,13 +64,16 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (parsed.data.address !== undefined) {
     updates.address = parsed.data.address || null;
   }
+  if (parsed.data.restore === true) {
+    updates.deleted_at = null;
+  }
 
   const { data, error } = await supabase
     .from("clients")
     .update(updates)
     .eq("id", id)
     .eq("company_id", companyId)
-    .select("id, company_id, name, email, phone, address, created_at")
+    .select(CLIENT_SELECT)
     .maybeSingle();
 
   if (error) {
@@ -91,10 +95,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     companyId,
     userId: user.id,
     userName: profile?.name ?? "User",
-    action: "update",
+    action: parsed.data.restore ? "update" : "update",
     entity: "client",
     entityId: client.id,
-    description: `Updated client ${client.name}`,
+    description: parsed.data.restore
+      ? `Restored client ${client.name}`
+      : `Updated client ${client.name}`,
   });
 
   return ok(client);
@@ -108,32 +114,22 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const { data: existing } = await supabase
     .from("clients")
-    .select("name")
+    .select("name, deleted_at")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
 
-  const { count, error: invoiceError } = await supabase
-    .from("invoices")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("client_id", id);
-
-  if (invoiceError) {
-    return fail("INTERNAL_ERROR", invoiceError.message, 500);
+  if (!existing) {
+    return fail("NOT_FOUND", "Client not found", 404);
   }
 
-  if ((count ?? 0) > 0) {
-    return fail(
-      "CONFLICT",
-      "Cannot delete this client because it has one or more invoices.",
-      409
-    );
+  if (existing.deleted_at) {
+    return ok({ deleted: true, alreadyDeleted: true });
   }
 
   const { data, error } = await supabase
     .from("clients")
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .eq("company_id", companyId)
     .select("id")
@@ -160,7 +156,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     action: "delete",
     entity: "client",
     entityId: id,
-    description: `Deleted client ${existing?.name ?? id}`,
+    description: `Soft-deleted client ${existing.name}`,
   });
 
   return ok({ deleted: true });

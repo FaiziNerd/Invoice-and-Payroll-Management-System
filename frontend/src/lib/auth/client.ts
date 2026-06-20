@@ -2,7 +2,7 @@ import type { Session, User, UserRole } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { setCurrentCompanyId } from "@/lib/company/context";
 
-export const USER_ROLES: UserRole[] = ["admin", "accountant", "hr"];
+export const USER_ROLES: UserRole[] = ["admin", "accountant", "hr", "employee"];
 
 export const SESSION_REFRESH_EVENT = "ipms-session-refresh";
 
