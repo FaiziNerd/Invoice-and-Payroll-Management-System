@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,20 @@ export default function EmployeeDetailPage({
   const employee = getEmployeeById(id);
 
   if (!employee) {
-    return <p className="text-center py-20 text-muted-foreground">Employee not found</p>;
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <EmptyState
+          icon="users"
+          title="Employee not found"
+          description="This employee may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/employees">Back to Employees</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   const dept = getDepartmentById(employee.departmentId);
@@ -78,6 +92,11 @@ export default function EmployeeDetailPage({
           </TabsContent>
 
           <TabsContent value="salary" className="mt-4">
+            <div className="flex justify-end mb-4">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/employees/${id}/edit`}><Pencil className="h-4 w-4" /> Edit Salary Structure</Link>
+              </Button>
+            </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Gross Pay</CardTitle></CardHeader>
@@ -111,7 +130,11 @@ export default function EmployeeDetailPage({
             <Card>
               <CardContent className="pt-6">
                 {slips.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No salary history yet.</p>
+                  <EmptyState
+                    icon="file"
+                    title="No salary history yet"
+                    description="Salary slips will appear here after payroll is processed."
+                  />
                 ) : (
                   <div className="space-y-3">
                     {slips.map((slip) => (

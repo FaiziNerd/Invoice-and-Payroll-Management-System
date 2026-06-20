@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -38,6 +40,7 @@ export default function DepartmentsPage() {
   const { session } = useAuth();
   const [departments, setDepartments] = useState(() => getDepartments());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState({ name: "", description: "" });
 
@@ -68,11 +71,16 @@ export default function DepartmentsPage() {
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (!session) return;
-    deleteDepartment(id, session.userId, session.name);
+  const handleDelete = (dept: Department) => {
+    setDeleteTarget(dept);
+  };
+
+  const confirmDelete = () => {
+    if (!session || !deleteTarget) return;
+    deleteDepartment(deleteTarget.id, session.userId, session.name);
     toast.success("Department deleted");
     refresh();
+    setDeleteTarget(null);
   };
 
   return (
@@ -84,33 +92,68 @@ export default function DepartmentsPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {departments.map((dept) => (
-                  <TableRow key={dept.id}>
-                    <TableCell className="font-medium">{dept.name}</TableCell>
-                    <TableCell>{dept.description}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(dept.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+            {departments.length === 0 ? (
+              <EmptyState
+                icon="inbox"
+                title="No departments yet"
+                description="Create departments to organize employees across your organization."
+                action={
+                  <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Department</Button>
+                }
+              />
+            ) : (
+              <>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="w-24">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {departments.map((dept) => (
+                        <TableRow key={dept.id}>
+                          <TableCell className="font-medium">{dept.name}</TableCell>
+                          <TableCell>{dept.description}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(dept)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="space-y-3 md:hidden">
+                  {departments.map((dept) => (
+                    <div key={dept.id} className="rounded-lg border p-4">
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <p className="font-medium">{dept.name}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{dept.description}</p>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(dept)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -132,6 +175,21 @@ export default function DepartmentsPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleSave}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Department</DialogTitle>
+              <DialogDescription>
+                Delete {deleteTarget?.name}? Employees in this department will keep their assignment until updated.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

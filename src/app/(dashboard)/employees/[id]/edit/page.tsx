@@ -3,8 +3,9 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,6 @@ import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/mock-db/e
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
-import { Plus, Trash2 as TrashIcon } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import type { SalaryAllowance, SalaryDeduction } from "@/types";
 
@@ -69,7 +69,20 @@ export default function EditEmployeePage({
   );
 
   if (!employee || !form) {
-    return <p className="text-center py-20 text-muted-foreground">Employee not found</p>;
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <EmptyState
+          icon="users"
+          title="Employee not found"
+          description="This employee may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/employees">Back to Employees</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -182,7 +195,7 @@ export default function EditEmployeePage({
                   <div key={a.id} className="flex gap-2 mb-2">
                     <Input placeholder="Name" value={a.name} onChange={(e) => { const u = [...allowances]; u[i].name = e.target.value; setAllowances(u); }} />
                     <Input type="number" value={a.amount} onChange={(e) => { const u = [...allowances]; u[i].amount = Number(e.target.value); setAllowances(u); }} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setAllowances(allowances.filter((_, j) => j !== i))}><TrashIcon className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setAllowances(allowances.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
               </div>
@@ -197,7 +210,7 @@ export default function EditEmployeePage({
                   <div key={d.id} className="flex gap-2 mb-2">
                     <Input placeholder="Name" value={d.name} onChange={(e) => { const u = [...deductions]; u[i].name = e.target.value; setDeductions(u); }} />
                     <Input type="number" value={d.amount} onChange={(e) => { const u = [...deductions]; u[i].amount = Number(e.target.value); setDeductions(u); }} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setDeductions(deductions.filter((_, j) => j !== i))}><TrashIcon className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setDeductions(deductions.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
               </div>

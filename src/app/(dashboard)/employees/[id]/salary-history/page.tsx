@@ -3,6 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getEmployeeById } from "@/lib/mock-db/employees";
@@ -22,7 +23,20 @@ export default function SalaryHistoryPage({
   const slips = getSlipsByEmployeeId(id);
 
   if (!employee) {
-    return <p className="text-center py-20">Employee not found</p>;
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <EmptyState
+          icon="users"
+          title="Employee not found"
+          description="This employee may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/employees">Back to Employees</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   return (
@@ -40,7 +54,11 @@ export default function SalaryHistoryPage({
         <Card>
           <CardContent className="pt-6">
             {slips.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No salary records found.</p>
+              <EmptyState
+                icon="file"
+                title="No salary records found"
+                description="Salary slips will appear here after payroll is processed."
+              />
             ) : (
               <div className="space-y-4">
                 {slips.map((slip) => (

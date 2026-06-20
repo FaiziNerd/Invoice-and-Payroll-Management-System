@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,7 +65,29 @@ export default function EmployeesPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((emp) => {
+          {employees.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon="users"
+                title="No employees yet"
+                description="Add your first employee to start managing profiles and salary structures."
+                action={
+                  <Button asChild>
+                    <Link href="/employees/new"><Plus className="h-4 w-4" /> Add Employee</Link>
+                  </Button>
+                }
+              />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon="users"
+                title="No matching employees"
+                description="Try adjusting your search or department filter."
+              />
+            </div>
+          ) : (
+            filtered.map((emp) => {
             const dept = departments.find((d) => d.id === emp.departmentId);
             const netPay = calculateNetPay(emp.salaryStructure);
             return (
@@ -87,7 +110,8 @@ export default function EmployeesPage() {
                 </Card>
               </Link>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </RoleGate>
