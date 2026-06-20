@@ -24,7 +24,7 @@ export default function NewInvoicePage() {
   useEffect(() => {
     fetch("/api/invoices/next-number", { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => { if (d?.data?.nextNumber) setNextInvoiceNumber(d.data.nextNumber); })
+      .then((d) => { if (d?.data?.invoiceNumber) setNextInvoiceNumber(d.data.invoiceNumber); })
       .catch(() => {});
   }, []);
 
@@ -35,6 +35,10 @@ export default function NewInvoicePage() {
     }
     if (values.items.length === 0) {
       toast.error("Add at least one line item");
+      return;
+    }
+    if (!nextInvoiceNumber) {
+      toast.error("Invoice number not ready yet, please try again in a moment");
       return;
     }
     try {

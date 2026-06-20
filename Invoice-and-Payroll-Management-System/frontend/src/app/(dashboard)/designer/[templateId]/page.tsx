@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import {
   getTemplateById,
+  fetchTemplateById,
   createTemplate,
   updateTemplate,
 } from "@/lib/repositories/templates";
@@ -54,14 +55,40 @@ export default function TemplateEditorPage({
   const router = useRouter();
   const { session } = useAuth();
 
-  const existing = !isNew ? getTemplateById(templateId) : null;
+  const cachedTemplate = !isNew ? getTemplateById(templateId) : null;
 
-  const [name, setName] = useState(existing?.name || "New Template");
-  const [theme, setTheme] = useState<"classic" | "modern" | "minimal">(existing?.theme || "modern");
-  const [branding, setBranding] = useState<TemplateBranding>(existing?.branding || defaultBranding);
-  const [isActive, setIsActive] = useState(existing?.isActive ?? false);
+  const [name, setName] = useState(cachedTemplate?.name || "New Template");
+  const [theme, setTheme] = useState<"classic" | "modern" | "minimal">(cachedTemplate?.theme || "modern");
+  const [branding, setBranding] = useState<TemplateBranding>(cachedTemplate?.branding || defaultBranding);
+  const [isActive, setIsActive] = useState(cachedTemplate?.isActive ?? false);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(!isNew && !cachedTemplate);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!isNew && !existing) {
+  useEffect(() => {
+    if (isNew || cachedTemplate) return;
+    fetchTemplateById(templateId).then((t) => {
+      if (t) {
+        setName(t.name);
+        setTheme(t.theme);
+        setBranding(t.branding);
+        setIsActive(t.isActive);
+      } else {
+        setNotFound(true);
+      }
+      setIsLoadingTemplate(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId, isNew]);
+
+  if (isLoadingTemplate) {
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
+
+  if (notFound) {
     return (
       <RoleGate roles={["admin", "accountant"]}>
         <EmptyState
@@ -78,6 +105,8 @@ export default function TemplateEditorPage({
     );
   }
 
+  const existing = cachedTemplate;
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -90,44 +119,42 @@ export default function TemplateEditorPage({
 
   const persistTemplate = async (redirectToPreview = false) => {
     if (!session) return null;
-
-    if (isNew) {
-      const created = await createTemplate(
-        { name, isDefault: false, isActive: false, theme, branding },
-        session.userId,
-        session.name
-      );
-      toast.success("Template saved as draft");
-      if (redirectToPreview) {
-        router.push(`/designer/preview/${created.id}`);
-      } else {
-        router.push(`/designer/${created.id}`);
-      }
-      return created;
-    }
-
-    if (existing) {
-      const updated = await updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
-      if (updated) {
-        setIsActive(updated.isActive);
-        toast.success("Template saved");
+    try {
+      if (isNew) {
+        const created = await createTemplate(
+          { name, isDefault: false, isActive: false, theme, branding },
+          session.userId,
+          session.name
+        );
+        toast.success("Template saved as draft");
         if (redirectToPreview) {
-          router.push(`/designer/preview/${existing.id}`);
+          router.push(`/designer/preview/${created.id}`);
+        } else {
+          router.push(`/designer/${created.id}`);
         }
+        return created;
       }
-      return updated;
+
+      if (existing) {
+        const updated = await updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
+        if (updated) {
+          setIsActive(updated.isActive);
+          toast.success("Template saved");
+          if (redirectToPreview) {
+            router.push(`/designer/preview/${existing.id}`);
+          }
+        }
+        return updated;
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save template");
     }
 
     return null;
   };
 
-  const handleSave = () => {
-    void persistTemplate(false);
-  };
-
-  const handleSaveAndPreview = () => {
-    void persistTemplate(true);
-  };
+  const handleSave = () => { void persistTemplate(false); };
+  const handleSaveAndPreview = () => { void persistTemplate(true); };
 
   return (
     <RoleGate roles={["admin", "accountant"]}>

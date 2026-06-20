@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Pencil, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getEmployeeById,
+  fetchEmployeeById,
   calculateGrossPay,
   calculateTotalDeductions,
   calculateNetPay,
@@ -22,6 +23,7 @@ import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { toast } from "sonner";
+import type { Employee } from "@/types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -31,8 +33,14 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
+  const [employee, setEmployee] = useState<Employee | undefined>(() => getEmployeeById(id));
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(!getEmployeeById(id));
   const slips = useStorageData(() => getSlipsByEmployeeId(id), ["salary_slips"]);
+
+  useEffect(() => {
+    if (employee) return;
+    fetchEmployeeById(id).then((emp) => { setEmployee(emp); setIsLoadingEmployee(false); });
+  }, [id, employee]);
 
   const handleDownloadSlip = async (slipId: string) => {
     const slip = slips.find((s) => s.id === slipId);
@@ -46,6 +54,14 @@ export default function EmployeeDetailPage({
       toast.error("Failed to download salary slip");
     }
   };
+
+  if (isLoadingEmployee) {
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
 
   if (!employee) {
     return (

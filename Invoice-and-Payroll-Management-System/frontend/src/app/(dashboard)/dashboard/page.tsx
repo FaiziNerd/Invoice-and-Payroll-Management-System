@@ -230,6 +230,7 @@ export default function DashboardPage() {
   };
 
   const handleExportDashboard = async () => {
+    try {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
 
@@ -336,6 +337,9 @@ export default function DashboardPage() {
         userName: session.name,
         description: "Exported full dashboard data",
       });
+    }
+    } catch {
+      toast.error("Failed to export dashboard data");
     }
   };
 

@@ -1,18 +1,19 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getEmployeeById } from "@/lib/repositories/employees";
+import { getEmployeeById, fetchEmployeeById } from "@/lib/repositories/employees";
 import { getSlipsByEmployeeId } from "@/lib/repositories/salary-slips";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { toast } from "sonner";
+import type { Employee } from "@/types";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -22,8 +23,14 @@ export default function SalaryHistoryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
+  const [employee, setEmployee] = useState<Employee | undefined>(() => getEmployeeById(id));
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(!getEmployeeById(id));
   const slips = useStorageData(() => getSlipsByEmployeeId(id), ["salary_slips"]);
+
+  useEffect(() => {
+    if (employee) return;
+    fetchEmployeeById(id).then((emp) => { setEmployee(emp); setIsLoadingEmployee(false); });
+  }, [id, employee]);
 
   const handleDownload = async (slipId: string) => {
     const slip = slips.find((s) => s.id === slipId);
@@ -36,6 +43,14 @@ export default function SalaryHistoryPage({
       toast.error("Failed to download salary slip");
     }
   };
+
+  if (isLoadingEmployee) {
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
 
   if (!employee) {
     return (
