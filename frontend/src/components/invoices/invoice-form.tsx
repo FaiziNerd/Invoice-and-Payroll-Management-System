@@ -16,7 +16,7 @@ import {
 import { getClients } from "@/lib/mock-db/clients";
 import { getActiveTemplates } from "@/lib/mock-db/templates";
 import { generateId } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import type { Client, Invoice, InvoiceLineItem } from "@/types";
 
 export interface InvoiceFormValues {
@@ -66,7 +66,11 @@ export function InvoiceForm({
     initialValues?.items?.length ? initialValues.items : [defaultItem()]
   );
 
+  const [clientError, setClientError] = useState("");
+  const [itemsError, setItemsError] = useState("");
+
   const updateItem = (id: string, field: keyof InvoiceLineItem, value: string | number) => {
+    setItemsError("");
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
@@ -86,7 +90,21 @@ export function InvoiceForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validItems = items.filter((i) => i.description && i.amount > 0);
+    let valid = true;
+
+    if (!clientId) {
+      setClientError("Please select a client");
+      valid = false;
+    }
+
+    const validItems = items.filter((i) => i.description.trim() && i.amount > 0);
+    if (validItems.length === 0) {
+      setItemsError("Add at least one line item with a description and amount greater than zero");
+      valid = false;
+    }
+
+    if (!valid) return;
+
     onSubmit({ clientId, templateId, taxRate, dueDate, notes, items: validItems });
   };
 
@@ -97,14 +115,24 @@ export function InvoiceForm({
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+            <Select
+              value={clientId}
+              onValueChange={(v) => { setClientId(v); setClientError(""); }}
+            >
+              <SelectTrigger className={clientError ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select client" />
+              </SelectTrigger>
               <SelectContent>
                 {clients.map((c: Client) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {clientError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <X className="h-3 w-3" />{clientError}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Template</Label>
@@ -136,6 +164,11 @@ export function InvoiceForm({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {itemsError && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <X className="h-3 w-3" />{itemsError}
+            </p>
+          )}
           {items.map((item) => (
             <div key={item.id} className="grid gap-3 sm:grid-cols-12 items-end">
               <div className="sm:col-span-5 space-y-1">
@@ -167,7 +200,13 @@ export function InvoiceForm({
                 <Input value={item.amount.toFixed(2)} readOnly />
               </div>
               <div className="sm:col-span-1">
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remove line item"
+                  onClick={() => removeItem(item.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

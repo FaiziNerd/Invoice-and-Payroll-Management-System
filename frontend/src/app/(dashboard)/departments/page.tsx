@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
   updateDepartment,
   deleteDepartment,
 } from "@/lib/mock-db/departments";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -38,28 +39,33 @@ import type { Department } from "@/types";
 
 export default function DepartmentsPage() {
   const { session } = useAuth();
-  const [departments, setDepartments] = useState(() => getDepartments());
+  const departments = useStorageData(() => getDepartments(), ["departments"]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState({ name: "", description: "" });
-
-  const refresh = () => setDepartments(getDepartments());
+  const [nameError, setNameError] = useState("");
 
   const openCreate = () => {
     setEditing(null);
     setForm({ name: "", description: "" });
+    setNameError("");
     setDialogOpen(true);
   };
 
   const openEdit = (dept: Department) => {
     setEditing(dept);
     setForm({ name: dept.name, description: dept.description });
+    setNameError("");
     setDialogOpen(true);
   };
 
   const handleSave = () => {
-    if (!session || !form.name) return;
+    if (!session) return;
+    if (!form.name.trim()) {
+      setNameError("Department name is required");
+      return;
+    }
     if (editing) {
       updateDepartment(editing.id, form, session.userId, session.name);
       toast.success("Department updated");
@@ -67,7 +73,6 @@ export default function DepartmentsPage() {
       createDepartment(form, session.userId, session.name);
       toast.success("Department created");
     }
-    refresh();
     setDialogOpen(false);
   };
 
@@ -80,7 +85,6 @@ export default function DepartmentsPage() {
     try {
       deleteDepartment(deleteTarget.id, session.userId, session.name);
       toast.success("Department deleted");
-      refresh();
       setDeleteTarget(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete department");
@@ -123,10 +127,20 @@ export default function DepartmentsPage() {
                           <TableCell>{dept.description}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Edit ${dept.name}`}
+                                onClick={() => openEdit(dept)}
+                              >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(dept)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Delete ${dept.name}`}
+                                onClick={() => handleDelete(dept)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -145,10 +159,20 @@ export default function DepartmentsPage() {
                           <p className="text-sm text-muted-foreground mt-1">{dept.description}</p>
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(dept)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Edit ${dept.name}`}
+                            onClick={() => openEdit(dept)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(dept)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete ${dept.name}`}
+                            onClick={() => handleDelete(dept)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -161,19 +185,36 @@ export default function DepartmentsPage() {
           </CardContent>
         </Card>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setNameError(""); }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Department" : "Add Department"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Label htmlFor="dept-name">Name</Label>
+                <Input
+                  id="dept-name"
+                  value={form.name}
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value });
+                    if (nameError) setNameError("");
+                  }}
+                  className={nameError ? "border-destructive" : ""}
+                />
+                {nameError && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <X className="h-3 w-3" />{nameError}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <Label htmlFor="dept-description">Description</Label>
+                <Textarea
+                  id="dept-description"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -188,7 +229,7 @@ export default function DepartmentsPage() {
             <DialogHeader>
               <DialogTitle>Delete Department</DialogTitle>
               <DialogDescription>
-                Delete {deleteTarget?.name}? This cannot be undone.
+                Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

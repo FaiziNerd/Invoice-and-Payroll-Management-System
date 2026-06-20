@@ -160,7 +160,12 @@ export default function SalarySlipsRunPage({
                           </span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleDownload(slip)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label={`Download PDF for ${emp ? `${emp.firstName} ${emp.lastName}` : "employee"}`}
+                        onClick={() => handleDownload(slip)}
+                      >
                         <Download className="h-4 w-4" /> Download PDF
                       </Button>
                     </div>

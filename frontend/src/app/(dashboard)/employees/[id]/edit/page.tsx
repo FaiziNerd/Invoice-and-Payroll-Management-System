@@ -199,7 +199,7 @@ export default function EditEmployeePage({
                   <div key={a.id} className="flex gap-2 mb-2">
                     <Input placeholder="Name" value={a.name} onChange={(e) => { const u = [...allowances]; u[i].name = e.target.value; setAllowances(u); }} />
                     <Input type="number" value={a.amount} onChange={(e) => { const u = [...allowances]; u[i].amount = Number(e.target.value); setAllowances(u); }} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setAllowances(allowances.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Remove allowance" onClick={() => setAllowances(allowances.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
               </div>
@@ -214,7 +214,7 @@ export default function EditEmployeePage({
                   <div key={d.id} className="flex gap-2 mb-2">
                     <Input placeholder="Name" value={d.name} onChange={(e) => { const u = [...deductions]; u[i].name = e.target.value; setDeductions(u); }} />
                     <Input type="number" value={d.amount} onChange={(e) => { const u = [...deductions]; u[i].amount = Number(e.target.value); setDeductions(u); }} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setDeductions(deductions.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Remove deduction" onClick={() => setDeductions(deductions.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
               </div>

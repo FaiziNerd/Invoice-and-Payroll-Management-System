@@ -157,7 +157,12 @@ export default function EmployeeDetailPage({
                         <span>{MONTHS[slip.month - 1]} {slip.year}</span>
                         <div className="flex items-center gap-3">
                           <span className="font-medium">{formatCurrency(slip.netPay)}</span>
-                          <Button variant="ghost" size="sm" onClick={() => handleDownloadSlip(slip.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Download salary slip for ${MONTHS[slip.month - 1]} ${slip.year}`}
+                            onClick={() => handleDownloadSlip(slip.id)}
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
                         </div>

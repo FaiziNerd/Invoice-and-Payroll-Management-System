@@ -187,7 +187,7 @@ export default function InvoiceDetailPage({
                 </Button>
               </>
             )}
-            <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+            <Button variant="destructive" size="sm" aria-label="Delete invoice" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>

@@ -422,6 +422,12 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {showInvoiceWidgets && (
+        <div>
+          <h2 className="text-base font-semibold mb-4 pb-2 border-b">Insights</h2>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         {showInvoiceWidgets && (
           <Card>
@@ -503,6 +509,14 @@ export default function DashboardPage() {
         )}
 
         {showInvoiceWidgets && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <h2 className="text-base font-semibold pb-1 border-b">Revenue</h2>
+            </CardHeader>
+          </Card>
+        )}
+
+        {showInvoiceWidgets && (
           <Card>
             <CardHeader>
               <CardTitle>Revenue Overview</CardTitle>
@@ -512,7 +526,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={revenueByMonth}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
+                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
                     <YAxis className="text-xs" />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
@@ -567,7 +581,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={agingData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="label" className="text-xs" />
+                    <XAxis dataKey="label" className="text-xs" angle={-35} textAnchor="end" height={50} />
                     <YAxis className="text-xs" />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Bar dataKey="amount" fill="#f59e0b" radius={[4, 4, 0, 0]} />
@@ -581,6 +595,14 @@ export default function DashboardPage() {
         )}
 
         {showPayrollWidgets && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <h2 className="text-base font-semibold pb-1 border-b">Payroll</h2>
+            </CardHeader>
+          </Card>
+        )}
+
+        {showPayrollWidgets && (
           <Card>
             <CardHeader>
               <CardTitle>Payroll Expense Trend</CardTitle>
@@ -590,7 +612,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={payrollTrend}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
+                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
                     <YAxis className="text-xs" />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Line type="monotone" dataKey="expense" stroke="#7c3aed" strokeWidth={2} />
@@ -641,7 +663,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={netMarginTrend}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
+                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
                     <YAxis className="text-xs" />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Line type="monotone" dataKey="margin" stroke="#10b981" strokeWidth={2} />
@@ -680,7 +702,7 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[...overdueInvoices, ...sentInvoices].map((inv) => {
+                  {[...overdueInvoices, ...sentInvoices].slice(0, 5).map((inv) => {
                     const client = clients.find((c) => c.id === inv.clientId);
                     return (
                       <TableRow key={inv.id}>
@@ -709,7 +731,7 @@ export default function DashboardPage() {
               </Table>
             </div>
             <div className="space-y-3 md:hidden">
-              {[...overdueInvoices, ...sentInvoices].map((inv) => {
+              {[...overdueInvoices, ...sentInvoices].slice(0, 5).map((inv) => {
                 const client = clients.find((c) => c.id === inv.clientId);
                 return (
                   <div key={inv.id} className="rounded-lg border p-4">
@@ -730,6 +752,14 @@ export default function DashboardPage() {
                 );
               })}
             </div>
+            {([...overdueInvoices, ...sentInvoices].length > 5) && (
+              <div className="mt-3 text-sm text-muted-foreground">
+                Showing 5 of {[...overdueInvoices, ...sentInvoices].length} outstanding.{" "}
+                <Link href="/invoices" className="text-primary hover:underline">
+                  View all invoices →
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
