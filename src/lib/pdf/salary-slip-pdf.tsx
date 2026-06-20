@@ -13,6 +13,7 @@ import type { SalarySlip, Employee } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { getDefaultTemplate } from "@/lib/mock-db/templates";
 import { getDepartmentById } from "@/lib/mock-db/departments";
+import { getOrganizationCompanyName } from "@/lib/mock-db/settings";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
@@ -58,7 +59,7 @@ const MONTHS = [
 ];
 
 function getSalarySlipCompanyName(): string {
-  return getDefaultTemplate()?.branding.companyName || "DotCode Solutions";
+  return getOrganizationCompanyName() || getDefaultTemplate()?.branding.companyName || "DotCode Solutions";
 }
 
 function getEmployeeDepartmentName(employee: Employee): string {

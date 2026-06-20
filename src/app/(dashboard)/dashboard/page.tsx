@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getInvoices } from "@/lib/mock-db/invoices";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
 import { getClients } from "@/lib/mock-db/clients";
+import { computeInvoiceAging } from "@/lib/invoices/aging";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import {
   BarChart,
@@ -51,9 +53,9 @@ function ChartPlaceholder({ message }: { message: string }) {
 export default function DashboardPage() {
   const { session, hasRole } = useAuth();
 
-  const invoices = useMemo(() => getInvoices(), []);
-  const payrollRuns = useMemo(() => getPayrollRuns(), []);
-  const clients = useMemo(() => getClients(), []);
+  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
+  const payrollRuns = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
+  const clients = useStorageData(() => getClients(), ["clients"]);
 
   const paidInvoices = invoices.filter((i) => i.status === "paid");
   const overdueInvoices = invoices.filter((i) => i.status === "overdue");
@@ -87,6 +89,8 @@ export default function DashboardPage() {
     { name: "Overdue", value: overdueInvoices.length },
     { name: "Draft", value: invoices.filter((i) => i.status === "draft").length },
   ];
+
+  const agingData = useMemo(() => computeInvoiceAging(invoices), [invoices]);
 
   const payrollTrend = payrollRuns
     .slice(0, 6)
@@ -156,6 +160,21 @@ export default function DashboardPage() {
     }
 
     if (showInvoiceWidgets) {
+      zip.file(
+        "invoice-aging.csv",
+        generateCSV(
+          agingData.map((d) => ({
+            bucket: d.label,
+            count: d.count,
+            amount: d.amount,
+          })),
+          [
+            { key: "bucket", label: "Aging Bucket" },
+            { key: "count", label: "Invoice Count" },
+            { key: "amount", label: "Amount" },
+          ]
+        )
+      );
       zip.file(
         "revenue-by-month.csv",
         generateCSV(revenueByMonth, [
@@ -340,6 +359,29 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               ) : (
                 <ChartPlaceholder message="No invoice data yet" />
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showInvoiceWidgets && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Aging</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {agingData.some((d) => d.count > 0) ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={agingData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="label" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Bar dataKey="amount" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartPlaceholder message="No outstanding invoices to age" />
               )}
             </CardContent>
           </Card>

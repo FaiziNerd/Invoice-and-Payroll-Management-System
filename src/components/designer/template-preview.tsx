@@ -1,48 +1,14 @@
-import Image from "next/image";
-import type { TemplateBranding } from "@/types";
+import type { TemplateBranding, InvoiceTemplate } from "@/types";
+import { InvoiceThemePreview } from "@/components/invoices/invoice-theme-view";
 
 export function TemplatePreview({
   branding,
+  theme = "classic",
   compact = false,
 }: {
   branding: TemplateBranding;
+  theme?: InvoiceTemplate["theme"];
   compact?: boolean;
 }) {
-  return (
-    <div style={{ fontFamily: branding.fontFamily }} className={compact ? "text-xs" : "text-sm"}>
-      <div
-        className="flex justify-between border-b-2 pb-4 mb-4"
-        style={{ borderColor: branding.primaryColor }}
-      >
-        <div>
-          {branding.sections.logo && branding.logo && (
-            <Image
-              src={branding.logo}
-              alt="Logo"
-              width={compact ? 24 : 40}
-              height={compact ? 24 : 40}
-              unoptimized
-              className={compact ? "h-6 w-auto mb-1" : "h-10 w-auto mb-2"}
-            />
-          )}
-          <p className="font-bold" style={{ color: branding.primaryColor }}>
-            {branding.companyName}
-          </p>
-          <p className="text-muted-foreground">{branding.companyAddress}</p>
-        </div>
-        <p className="font-bold" style={{ color: branding.primaryColor }}>INVOICE</p>
-      </div>
-      <div className="space-y-2">
-        <div className="h-5 rounded" style={{ backgroundColor: branding.primaryColor, opacity: 0.1 }} />
-        <div className="h-3 rounded bg-muted" />
-        <div className="h-3 rounded bg-muted w-3/4" />
-      </div>
-      {branding.sections.paymentTerms && (
-        <p className="text-xs mt-4 text-muted-foreground">{branding.paymentTerms}</p>
-      )}
-      {branding.sections.footer && (
-        <p className="text-xs mt-4 text-center text-muted-foreground">{branding.footerText}</p>
-      )}
-    </div>
-  );
+  return <InvoiceThemePreview branding={branding} theme={theme} compact={compact} />;
 }

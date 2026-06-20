@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
 import { getEmployees } from "@/lib/mock-db/employees";
 import { getDepartments } from "@/lib/mock-db/departments";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { exportToCSV } from "@/lib/csv";
@@ -32,9 +32,9 @@ const COLORS = ["#2563eb", "#7c3aed", "#10b981", "#f59e0b", "#ef4444"];
 
 export default function PayrollReportsPage() {
   const { session } = useAuth();
-  const runs = useMemo(() => getPayrollRuns(), []);
-  const employees = useMemo(() => getEmployees(), []);
-  const departments = useMemo(() => getDepartments(), []);
+  const runs = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
+  const employees = useStorageData(() => getEmployees(), ["employees"]);
+  const departments = useStorageData(() => getDepartments(), ["departments"]);
 
   const processedRuns = runs.filter((r) => r.status === "processed" || r.status === "paid");
   const totalExpense = processedRuns.reduce((s, r) => s + r.totalNet, 0);

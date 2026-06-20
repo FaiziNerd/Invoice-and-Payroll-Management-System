@@ -103,14 +103,14 @@ export default function TemplatePreviewPage({
             <p className="text-sm text-muted-foreground mb-2">Desktop Preview</p>
             <Card>
               <CardContent className="p-8">
-                <DetailedInvoicePreview branding={branding} />
+                <DetailedInvoicePreview branding={branding} theme={template.theme} />
               </CardContent>
             </Card>
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-2">Mobile Preview</p>
             <MobilePreviewFrame>
-              <DetailedInvoicePreview branding={branding} compact />
+              <DetailedInvoicePreview branding={branding} theme={template.theme} compact />
             </MobilePreviewFrame>
           </div>
         </div>
@@ -141,14 +141,16 @@ export default function TemplatePreviewPage({
 
 function DetailedInvoicePreview({
   branding,
+  theme = "classic",
   compact = false,
 }: {
   branding: TemplateBranding;
+  theme?: "classic" | "modern" | "minimal";
   compact?: boolean;
 }) {
   return (
     <div style={{ fontFamily: branding.fontFamily }} className={compact ? "text-xs" : "text-sm"}>
-      <TemplatePreview branding={branding} compact={compact} />
+      <TemplatePreview branding={branding} theme={theme} compact={compact} />
       <div className="mt-4">
         <p className="text-muted-foreground">Bill To: Sample Client</p>
       </div>

@@ -252,13 +252,13 @@ export default function TemplateEditorPage({
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Desktop</p>
                   <div className="rounded-lg border p-4">
-                    <TemplatePreview branding={branding} />
+                    <TemplatePreview branding={branding} theme={theme} />
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Mobile</p>
                   <MobilePreviewFrame>
-                    <TemplatePreview branding={branding} compact />
+                    <TemplatePreview branding={branding} theme={theme} compact />
                   </MobilePreviewFrame>
                 </div>
               </CardContent>

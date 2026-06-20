@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,11 @@ import {
 } from "@/lib/mock-db/employees";
 import { getDepartmentById } from "@/lib/mock-db/departments";
 import { getSlipsByEmployeeId } from "@/lib/mock-db/salary-slips";
+import { downloadSalarySlipPDF } from "@/lib/pdf/salary-slip-pdf";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
+import { toast } from "sonner";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -28,7 +31,20 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const employee = getEmployeeById(id);
+  const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
+  const slips = useStorageData(() => getSlipsByEmployeeId(id), ["salary_slips"]);
+
+  const handleDownloadSlip = async (slipId: string) => {
+    const slip = slips.find((s) => s.id === slipId);
+    const emp = getEmployeeById(id);
+    if (!slip || !emp) return;
+    try {
+      await downloadSalarySlipPDF(slip, emp);
+      toast.success("Salary slip downloaded");
+    } catch {
+      toast.error("Failed to download salary slip");
+    }
+  };
 
   if (!employee) {
     return (
@@ -52,7 +68,6 @@ export default function EmployeeDetailPage({
   const gross = calculateGrossPay(salaryStructure);
   const deductions = calculateTotalDeductions(salaryStructure);
   const net = calculateNetPay(salaryStructure);
-  const slips = getSlipsByEmployeeId(id);
 
   return (
     <RoleGate roles={["admin", "hr"]}>
@@ -140,7 +155,12 @@ export default function EmployeeDetailPage({
                     {slips.map((slip) => (
                       <div key={slip.id} className="flex justify-between items-center border-b pb-3">
                         <span>{MONTHS[slip.month - 1]} {slip.year}</span>
-                        <span className="font-medium">{formatCurrency(slip.netPay)}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium">{formatCurrency(slip.netPay)}</span>
+                          <Button variant="ghost" size="sm" onClick={() => handleDownloadSlip(slip.id)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

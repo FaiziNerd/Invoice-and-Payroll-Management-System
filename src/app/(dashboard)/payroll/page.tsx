@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Plus, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -17,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -24,12 +23,7 @@ import { RoleGate } from "@/components/auth/role-gate";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function PayrollPage() {
-  const pathname = usePathname();
-  const [runs, setRuns] = useState(() => getPayrollRuns());
-
-  useEffect(() => {
-    setRuns(getPayrollRuns());
-  }, [pathname]);
+  const runs = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
 
   return (
     <RoleGate roles={["admin", "accountant", "hr"]}>

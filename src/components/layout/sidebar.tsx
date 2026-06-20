@@ -13,6 +13,7 @@ import {
   Receipt,
   Shield,
   Activity,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { label: "Payroll", href: "/payroll", icon: Wallet, roles: ["admin", "accountant", "hr"] },
   { label: "Salary Slips", href: "/salary-slips", icon: Receipt, roles: ["admin", "hr"] },
   { label: "Users", href: "/admin/users", icon: Shield, roles: ["admin"] },
+  { label: "Settings", href: "/admin/settings", icon: Settings, roles: ["admin"] },
   { label: "Activity", href: "/admin/activity", icon: Activity, roles: ["admin"] },
 ];
 

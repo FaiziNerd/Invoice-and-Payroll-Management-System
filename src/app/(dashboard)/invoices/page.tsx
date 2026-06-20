@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { getInvoices } from "@/lib/mock-db/invoices";
 import { getClients } from "@/lib/mock-db/clients";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -34,8 +35,8 @@ export default function InvoicesPage() {
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const invoices = useMemo(() => getInvoices(), []);
-  const clients = useMemo(() => getClients(), []);
+  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
+  const clients = useStorageData(() => getClients(), ["clients"]);
 
   const filtered = invoices.filter((inv) => {
     const client = clients.find((c) => c.id === inv.clientId);

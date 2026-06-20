@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { getSalarySlips } from "@/lib/mock-db/salary-slips";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
 import { getEmployeeById } from "@/lib/mock-db/employees";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
@@ -18,8 +19,11 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 export default function SalarySlipsPage() {
   const [search, setSearch] = useState("");
-  const slips = getSalarySlips();
-  const runs = getPayrollRuns().filter((r) => r.status === "processed" || r.status === "paid");
+  const slips = useStorageData(() => getSalarySlips(), ["salary_slips"]);
+  const runs = useStorageData(
+    () => getPayrollRuns().filter((r) => r.status === "processed" || r.status === "paid"),
+    ["payroll_runs"]
+  );
 
   const filteredSlips = slips.filter((slip) => {
     const emp = getEmployeeById(slip.employeeId);
