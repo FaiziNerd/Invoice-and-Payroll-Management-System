@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { COMPANY_CHANGE_EVENT } from "@/lib/mock-db/storage";
 
 export const STORAGE_CHANGE_EVENT = "ipms-storage-change";
 
@@ -28,7 +29,11 @@ export function useStorageData<T>(
     };
 
     window.addEventListener(STORAGE_CHANGE_EVENT, onStorageChange);
-    return () => window.removeEventListener(STORAGE_CHANGE_EVENT, onStorageChange);
+    window.addEventListener(COMPANY_CHANGE_EVENT, bump);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, onStorageChange);
+      window.removeEventListener(COMPANY_CHANGE_EVENT, bump);
+    };
   }, [storageKeys, bump]);
 
   useEffect(() => {

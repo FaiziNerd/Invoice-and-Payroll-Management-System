@@ -3,12 +3,15 @@
 import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { InvoiceForm, invoiceToFormValues } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { getInvoiceById, updateInvoice } from "@/lib/mock-db/invoices";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function EditInvoicePage({
   params,
@@ -21,7 +24,20 @@ export default function EditInvoicePage({
   const invoice = useMemo(() => getInvoiceById(id), [id]);
 
   if (!invoice) {
-    return <p className="text-center py-20 text-muted-foreground">Invoice not found</p>;
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <EmptyState
+          icon="file"
+          title="Invoice not found"
+          description="This invoice may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/invoices">Back to Invoices</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   if (invoice.status === "paid") {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,9 +74,13 @@ export default function ClientsPage() {
 
   const handleDelete = (id: string) => {
     if (!session) return;
-    deleteClient(id, session.userId, session.name);
-    toast.success("Client deleted");
-    refresh();
+    try {
+      deleteClient(id, session.userId, session.name);
+      toast.success("Client deleted");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete client");
+    }
   };
 
   return (
@@ -88,7 +93,14 @@ export default function ClientsPage() {
         <Card>
           <CardContent className="pt-6">
             {clients.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No clients yet.</p>
+              <EmptyState
+                icon="users"
+                title="No clients yet"
+                description="Add your first client to start creating invoices."
+                action={
+                  <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Client</Button>
+                }
+              />
             ) : (
               <>
                 <div className="hidden md:block">

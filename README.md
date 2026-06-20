@@ -8,4 +8,4 @@ npm install
 npm run dev
 ```
 
-See [frontend/README.md](./frontend/README.md) for full project documentation.
+See [frontend/README.md](./frontend/README.md) for the full feature checklist, demo walkthrough, routes, and demo credentials.

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
+import { AiInvoiceGenerator } from "@/components/invoices/ai-invoice-generator";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/mock-db/invoices";
 import { getDefaultTemplate } from "@/lib/mock-db/templates";
 import { useAuth } from "@/providers/auth-provider";
@@ -14,6 +16,8 @@ export default function NewInvoicePage() {
   const router = useRouter();
   const { session } = useAuth();
   const defaultTemplate = getDefaultTemplate();
+  const [formKey, setFormKey] = useState(0);
+  const [aiValues, setAiValues] = useState<Partial<InvoiceFormValues> | undefined>();
 
   const handleSubmit = (values: InvoiceFormValues) => {
     if (!session || !values.clientId) {
@@ -43,11 +47,20 @@ export default function NewInvoicePage() {
     router.push(`/invoices/${invoice.id}`);
   };
 
+  const handleAiGenerated = (values: InvoiceFormValues, summary: string) => {
+    setAiValues(values);
+    setFormKey((k) => k + 1);
+    toast.success(summary);
+  };
+
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
         <PageHeader title="New Invoice" description="Create a new invoice" />
+        <AiInvoiceGenerator onGenerated={handleAiGenerated} />
         <InvoiceForm
+          key={formKey}
+          initialValues={aiValues}
           submitLabel="Create Invoice"
           onSubmit={handleSubmit}
           onCancel={() => router.back()}

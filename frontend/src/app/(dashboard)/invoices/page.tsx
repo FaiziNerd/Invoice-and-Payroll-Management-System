@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -114,8 +115,26 @@ export default function InvoicesPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {filtered.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No invoices found.</p>
+            {invoices.length === 0 ? (
+              <EmptyState
+                icon="file"
+                title="No invoices yet"
+                description="Create your first invoice to start tracking billing."
+                action={
+                  <Button asChild>
+                    <Link href="/invoices/new">
+                      <Plus className="h-4 w-4" />
+                      New Invoice
+                    </Link>
+                  </Button>
+                }
+              />
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                icon="file"
+                title="No matching invoices"
+                description="Try adjusting your search or filter criteria."
+              />
             ) : (
               <>
                 <div className="hidden md:block">

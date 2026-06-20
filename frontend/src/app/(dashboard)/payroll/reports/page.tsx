@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
@@ -166,8 +167,17 @@ export default function PayrollReportsPage() {
 
         {runs.length === 0 && (
           <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              No payroll data yet. <Link href="/payroll/run" className="text-primary hover:underline">Run your first payroll</Link>
+            <CardContent className="pt-6">
+              <EmptyState
+                icon="file"
+                title="No payroll data yet"
+                description="Run your first payroll to see expense analytics and department breakdowns."
+                action={
+                  <Button asChild>
+                    <Link href="/payroll/run">Run Your First Payroll</Link>
+                  </Button>
+                }
+              />
             </CardContent>
           </Card>
         )}

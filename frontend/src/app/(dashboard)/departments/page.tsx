@@ -77,10 +77,14 @@ export default function DepartmentsPage() {
 
   const confirmDelete = () => {
     if (!session || !deleteTarget) return;
-    deleteDepartment(deleteTarget.id, session.userId, session.name);
-    toast.success("Department deleted");
-    refresh();
-    setDeleteTarget(null);
+    try {
+      deleteDepartment(deleteTarget.id, session.userId, session.name);
+      toast.success("Department deleted");
+      refresh();
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete department");
+    }
   };
 
   return (
@@ -184,7 +188,7 @@ export default function DepartmentsPage() {
             <DialogHeader>
               <DialogTitle>Delete Department</DialogTitle>
               <DialogDescription>
-                Delete {deleteTarget?.name}? Employees in this department will keep their assignment until updated.
+                Delete {deleteTarget?.name}? This cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

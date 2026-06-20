@@ -31,7 +31,12 @@ import type { AuditAction } from "@/types";
 
 const PAGE_SIZE = 20;
 const ACTIONS: AuditAction[] = ["create", "update", "delete", "login", "logout", "send", "process", "export", "status_change"];
-const ENTITIES = ["user", "invoice", "client", "employee", "payroll", "template", "department", "dashboard"];
+const ENTITIES = ["user", "invoice", "client", "employee", "payroll", "salary_slip", "template", "department", "dashboard"];
+
+function formatEntityLabel(entity: string): string {
+  if (entity === "salary_slip") return "Salary Slip";
+  return entity.replace("_", " ");
+}
 
 export default function ActivityPage() {
   const [search, setSearch] = useState("");
@@ -109,7 +114,7 @@ export default function ActivityPage() {
             <SelectContent>
               <SelectItem value="all">All Entities</SelectItem>
               {ENTITIES.map((e) => (
-                <SelectItem key={e} value={e} className="capitalize">{e}</SelectItem>
+                <SelectItem key={e} value={e}>{formatEntityLabel(e)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -124,7 +129,11 @@ export default function ActivityPage() {
                 description="Actions across the platform will appear here."
               />
             ) : filtered.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No logs match your filters.</p>
+              <EmptyState
+                icon="inbox"
+                title="No matching activity"
+                description="Try adjusting your search or filter criteria."
+              />
             ) : (
               <>
                 <div className="hidden md:block">
@@ -148,7 +157,7 @@ export default function ActivityPage() {
                           <TableCell>
                             <Badge variant="outline" className="capitalize">{log.action.replace("_", " ")}</Badge>
                           </TableCell>
-                          <TableCell className="capitalize">{log.entity}</TableCell>
+                          <TableCell>{formatEntityLabel(log.entity)}</TableCell>
                           <TableCell>{log.description}</TableCell>
                         </TableRow>
                       ))}

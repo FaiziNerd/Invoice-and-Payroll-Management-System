@@ -107,9 +107,13 @@ export default function EditEmployeePage({
 
   const handleDelete = () => {
     if (!session) return;
-    deleteEmployee(id, session.userId, session.name);
-    toast.success("Employee deleted");
-    router.push("/employees");
+    try {
+      deleteEmployee(id, session.userId, session.name);
+      toast.success("Employee deleted");
+      router.push("/employees");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete employee");
+    }
   };
 
   return (

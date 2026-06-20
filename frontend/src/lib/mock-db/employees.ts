@@ -1,9 +1,10 @@
 import { getFromStorage, setInStorage } from "./storage";
-import type { Employee, SalaryStructure } from "@/types";
+import type { Employee, PayrollRun, SalaryStructure } from "@/types";
 import { generateId } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
 
 const KEY = "employees";
+const PAYROLL_RUNS_KEY = "payroll_runs";
 
 export function getEmployees(): Employee[] {
   return getFromStorage<Employee[]>(KEY, []);
@@ -71,6 +72,15 @@ export function deleteEmployee(
   const employees = getEmployees();
   const emp = employees.find((e) => e.id === id);
   if (!emp) return false;
+  if (
+    getFromStorage<PayrollRun[]>(PAYROLL_RUNS_KEY, []).some((run) =>
+      run.entries.some((entry) => entry.employeeId === id)
+    )
+  ) {
+    throw new Error(
+      "Cannot delete this employee because they appear in one or more payroll runs."
+    );
+  }
   setInStorage(
     KEY,
     employees.filter((e) => e.id !== id)

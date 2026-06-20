@@ -2,35 +2,19 @@
 
 A frontend-only **Invoice & Payroll Management Platform** built with Next.js 15, TypeScript, and Tailwind CSS. All data is stored in `localStorage` with a mock service layer — no backend required.
 
-## Features
-
-### Core Modules
-- **User & Access Management** — Demo login, role-based access (Admin, Accountant, HR), audit logs
-- **Invoice Management** — CRUD, status workflow, PDF download, share links, QR codes, email mock
-- **Custom Invoice Designer** — Branded templates with logo, colors, fonts, live preview
-- **Employee Management** — Profiles, departments, salary structures
-- **Payroll Management** — Monthly runs, calculations, bonus/deductions, reports, CSV export
-- **Salary Slip Generation** — PDF slips per employee, bulk download
-- **Dashboard & Reporting** — Revenue charts, invoice analytics, payroll trends, outstanding payments
-
-### Bonus Features
-- Dark mode toggle
-- Mobile responsive layout
-- CSV export (payroll, dashboard)
-- QR code invoice sharing
-- Audit logs & activity tracking
-- Mock email delivery
-
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - npm
 
 ### Installation
 
+From the repository root:
+
 ```bash
-cd Invoice-and-Payroll-Management-System
+cd frontend
 npm install
 npm run dev
 ```
@@ -39,17 +23,148 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Demo Accounts
 
-| Role       | Email                    | Password  |
-|------------|--------------------------|-----------|
-| Admin      | admin@dotcode.com        | admin123  |
-| Accountant | accountant@dotcode.com   | acc123    |
-| HR         | hr@dotcode.com           | hr123     |
+| Role       | Email                  | Password  |
+|------------|------------------------|-----------|
+| Admin      | admin@dotcode.com      | admin123  |
+| Accountant | accountant@dotcode.com | acc123    |
+| HR         | hr@dotcode.com         | hr123     |
+
+> **Tip:** Log in as **Admin** to access the multi-company switcher in the header, user management, org settings, and activity log.
+
+---
+
+## Demo Walkthrough
+
+1. **Landing page** — Visit `/` for the public marketing page, then click **Get Started** or **Sign in**.
+2. **Login** — Use `admin@dotcode.com` / `admin123` for full access.
+3. **Multi-company (Admin)** — Use the company dropdown in the header to switch between **DotCode Solutions** and **Acme Holdings**. Invoices, clients, employees, payroll, and settings are scoped per company.
+4. **Dashboard** — Review revenue, payroll, outstanding invoices, aging chart, MoM KPI badges, AI insights card, and payment-reminder widget.
+5. **Invoices** — Create, edit, send/resend mock emails, send payment reminders, download PDFs, and share via public link + QR code.
+6. **Designer** — Customize invoice templates (classic / modern / minimal themes) with branding colors and live preview.
+7. **Clients** — Manage client records (delete blocked when invoices exist).
+8. **Employees & Departments** — HR workflows with salary structures; delete guards when referenced in payroll.
+9. **Payroll** — Run monthly payroll, view reports, export CSV, generate salary slip PDFs.
+10. **Admin** — Manage users, organization settings (company name/address for PDFs), and audit activity log.
+11. **Public share** — Open `/share/invoice/[token]` from an invoice detail page to preview the client-facing view.
+
+To reset demo data, clear site data in your browser (localStorage keys prefixed with `ipms_`).
+
+---
+
+## Routes
+
+| Route | Access | Description |
+|-------|--------|-------------|
+| `/` | Public | Landing page |
+| `/login` | Public | Demo login |
+| `/dashboard` | Authenticated | Main dashboard & analytics |
+| `/invoices` | Admin, Accountant | Invoice list |
+| `/invoices/new` | Admin, Accountant | Create invoice (+ AI mock generator) |
+| `/invoices/[id]` | Admin, Accountant | Invoice detail, PDF, email, share |
+| `/invoices/[id]/edit` | Admin, Accountant | Edit invoice |
+| `/clients` | Admin, Accountant | Client management |
+| `/designer` | Admin, Accountant | Invoice template list |
+| `/designer/[templateId]` | Admin, Accountant | Template editor |
+| `/designer/preview/[templateId]` | Admin, Accountant | Template preview |
+| `/employees` | Admin, HR | Employee list |
+| `/employees/new` | Admin, HR | Add employee |
+| `/employees/[id]` | Admin, HR | Employee profile |
+| `/employees/[id]/edit` | Admin, HR | Edit employee |
+| `/employees/[id]/salary-history` | Admin, HR | Salary slip history + PDF |
+| `/departments` | Admin, HR | Department management |
+| `/payroll` | Admin, Accountant, HR | Payroll runs |
+| `/payroll/run` | Admin, Accountant, HR | Create payroll run |
+| `/payroll/[runId]` | Admin, Accountant, HR | Payroll run detail |
+| `/payroll/reports` | Admin, Accountant, HR | Payroll reports & charts |
+| `/salary-slips` | Admin, HR | Salary slip list |
+| `/salary-slips/[runId]` | Admin, HR | Slips for a run (bulk PDF ZIP) |
+| `/admin/users` | Admin | User management |
+| `/admin/settings` | Admin | Organization settings |
+| `/admin/activity` | Admin | Audit log |
+| `/share/invoice/[token]` | Public | Shared invoice view |
+
+---
+
+## Feature Checklist
+
+### Phase A — Core Platform
+
+- [x] Public landing page at `/`
+- [x] Demo authentication with role-based access (Admin, Accountant, HR)
+- [x] Protected dashboard layout with sidebar navigation
+- [x] Dark mode toggle
+- [x] Mobile-responsive layout
+- [x] `localStorage` mock DB with seed data on first load
+- [x] Audit logging for key actions
+
+### Phase B — Invoice Module
+
+- [x] Invoice CRUD with status workflow (draft → sent → paid / overdue)
+- [x] Line items, tax calculation, invoice numbering
+- [x] PDF download
+- [x] Public share links + QR codes
+- [x] Mock email send on draft invoices
+- [x] Invoice history timeline
+
+### Phase C — Payroll & HR Module
+
+- [x] Client management
+- [x] Employee profiles with salary structures
+- [x] Department management
+- [x] Monthly payroll runs with bonus/deductions
+- [x] Salary slip PDF generation (individual + bulk ZIP)
+- [x] Payroll reports with charts and CSV export
+- [x] Employee salary history page
+
+### Phase D — UX Polish
+
+- [x] Delete guards (client with invoices, department with employees, employee in payroll)
+- [x] Shared `EmptyState` component on list and not-found views
+- [x] Salary slip PDF branding from template primary color
+- [x] `salary_slip` entity filter on Activity page
+
+### Phase E — Bonus Mocks (Email & Reminders)
+
+- [x] Payment reminders for sent/overdue invoices (mock)
+- [x] Dashboard widget for invoices needing reminders
+- [x] Resend invoice email for sent/overdue
+- [x] Email preview dialog with recipient, subject, body template
+- [x] Distinct history actions: sent, resent, reminder_sent
+
+### Phase F — Bonus Mocks (AI & Analytics)
+
+- [x] AI Invoice Generator on new invoice page (rule-based mock, no API)
+- [x] AI Payroll Insights card on dashboard
+- [x] Month-over-month % on revenue, outstanding, payroll, and net margin KPIs
+- [x] Department payroll breakdown chart on dashboard
+- [x] Net margin trend (admin/accountant)
+- [x] Extended dashboard ZIP export (aging, analytics CSVs)
+
+### Phase G — Multi-Company
+
+- [x] `Company` entity with two seeded companies (DotCode Solutions, Acme Holdings)
+- [x] Company switcher in header (Admin only)
+- [x] Company-scoped storage for invoices, clients, employees, departments, payroll, settings, templates, audit logs
+- [x] Switching companies reloads scoped data without cross-company leakage
+
+### Phase H — Documentation
+
+- [x] README with feature checklist, demo walkthrough, routes, and credentials
+
+### Additional Features
+
+- [x] Custom Invoice Designer — branded templates (classic / modern / minimal)
+- [x] Organization settings — company name/address in PDFs
+- [x] Invoice aging chart on dashboard
+- [x] Dashboard CSV/ZIP export
+- [x] `useStorageData` hook for reactive localStorage reads
+
+---
 
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router) + TypeScript
-- **UI:** Tailwind CSS + shadcn/ui components
-- **State:** Zustand-ready mock layer + TanStack Query
+- **UI:** Tailwind CSS + shadcn/ui
 - **Charts:** Recharts
 - **PDF:** @react-pdf/renderer
 - **QR:** qrcode.react
@@ -60,15 +175,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ```
 src/
   app/
-    (auth)/login/          # Public login
-    (dashboard)/           # Protected app routes
-    share/invoice/[token]  # Public invoice view
-  components/              # UI, layout, auth components
-  lib/mock-db/             # localStorage CRUD repositories
-  lib/pdf/                 # PDF generation
-  providers/               # Auth, theme, query providers
-  types/                   # TypeScript interfaces
-  data/seed.ts             # Demo data initializer
+    (auth)/login/           # Public login
+    (dashboard)/            # Protected app routes
+    share/invoice/[token]   # Public invoice view
+  components/
+    layout/                 # Header, sidebar, company switcher
+    shared/                 # EmptyState, PageHeader, etc.
+  data/seed.ts              # Multi-company demo seed
+  hooks/use-storage-data.ts # Reactive localStorage hook
+  lib/mock-db/              # localStorage CRUD + company scoping
+  lib/pdf/                  # PDF generation
+  providers/                # Auth, theme, query providers
+  types/                    # TypeScript interfaces
 ```
 
 ## Scripts
@@ -82,4 +200,4 @@ npm run lint     # Run ESLint
 
 ## Notes
 
-This is a **frontend-only** prototype. Data persists in browser `localStorage` and resets if you clear site data. Designed for demo and UI/UX validation before connecting a real backend.
+This is a **frontend-only** prototype. Data persists in browser `localStorage` and resets if you clear site data. No real backend, AI API, or SMTP email delivery — all external integrations are mocked for demo and UI/UX validation.

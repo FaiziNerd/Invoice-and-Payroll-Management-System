@@ -14,8 +14,11 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  Bell,
+  RotateCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,18 +42,20 @@ import {
   getInvoiceById,
   updateInvoiceStatus,
   deleteInvoice,
+  sendInvoiceEmail,
 } from "@/lib/mock-db/invoices";
 import { getClientById } from "@/lib/mock-db/clients";
 import { getTemplateById } from "@/lib/mock-db/templates";
 import { downloadInvoicePDF } from "@/lib/pdf/invoice-pdf";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
+import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
+import type { EmailMode } from "@/lib/invoices/email";
 import { formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { QRCodeSVG } from "qrcode.react";
 import { getUserById } from "@/lib/mock-db/auth";
-import { addAuditLog } from "@/lib/audit";
 
 export default function InvoiceDetailPage({
   params,
@@ -60,7 +65,7 @@ export default function InvoiceDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { session } = useAuth();
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailMode, setEmailMode] = useState<EmailMode | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -84,7 +89,20 @@ export default function InvoiceDetailPage({
   const refresh = () => setRefreshKey((k) => k + 1);
 
   if (!invoice || !client) {
-    return <p className="text-center py-20 text-muted-foreground">Invoice not found</p>;
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <EmptyState
+          icon="file"
+          title="Invoice not found"
+          description="This invoice may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/invoices">Back to Invoices</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   const daysOverdue = invoice.status === "overdue" ? getDaysOverdue(invoice.dueDate) : 0;
@@ -105,20 +123,17 @@ export default function InvoiceDetailPage({
     toast.success("PDF downloaded");
   };
 
-  const handleSendEmail = () => {
-    if (!session) return;
-    updateInvoiceStatus(invoice.id, "sent", session.userId, session.name);
-    addAuditLog({
-      action: "send",
-      entity: "invoice",
-      entityId: invoice.id,
-      userId: session.userId,
-      userName: session.name,
-      description: `Sent invoice ${invoice.invoiceNumber} to ${client.email} (mock)`,
-      metadata: { email: client.email },
-    });
-    setShowEmailDialog(false);
-    toast.success(`Invoice sent to ${client.email}`);
+  const handleEmailConfirm = () => {
+    if (!session || !emailMode) return;
+    sendInvoiceEmail(invoice.id, session.userId, session.name, client.email, emailMode);
+    setEmailMode(null);
+
+    const messages: Record<EmailMode, string> = {
+      send: `Invoice sent to ${client.email}`,
+      resend: `Invoice resent to ${client.email}`,
+      reminder: `Payment reminder sent to ${client.email}`,
+    };
+    toast.success(messages[emailMode]);
     refresh();
   };
 
@@ -155,14 +170,22 @@ export default function InvoiceDetailPage({
               <QrCode className="h-4 w-4" /> QR
             </Button>
             {invoice.status === "draft" && (
-              <Button size="sm" onClick={() => setShowEmailDialog(true)}>
+              <Button size="sm" onClick={() => setEmailMode("send")}>
                 <Send className="h-4 w-4" /> Send
               </Button>
             )}
             {(invoice.status === "sent" || invoice.status === "overdue") && (
-              <Button size="sm" onClick={handleMarkPaid}>
-                <CheckCircle className="h-4 w-4" /> Mark Paid
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => setEmailMode("resend")}>
+                  <RotateCw className="h-4 w-4" /> Resend
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEmailMode("reminder")}>
+                  <Bell className="h-4 w-4" /> Send Reminder
+                </Button>
+                <Button size="sm" onClick={handleMarkPaid}>
+                  <CheckCircle className="h-4 w-4" /> Mark Paid
+                </Button>
+              </>
             )}
             <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="h-4 w-4" />
@@ -249,6 +272,7 @@ export default function InvoiceDetailPage({
                 <div className="space-y-3">
                   {invoice.history.map((entry) => {
                     const isOverdueEntry = entry.action.toLowerCase().includes("overdue");
+                    const isReminderEntry = entry.action.toLowerCase().includes("reminder");
                     const actor =
                       entry.userName ||
                       (entry.userId ? getUserById(entry.userId)?.name : undefined) ||
@@ -258,7 +282,11 @@ export default function InvoiceDetailPage({
                       <div
                         key={entry.id}
                         className={`border-l-2 pl-3 ${
-                          isOverdueEntry ? "border-destructive" : "border-primary"
+                          isOverdueEntry
+                            ? "border-destructive"
+                            : isReminderEntry
+                              ? "border-amber-500"
+                              : "border-primary"
                         }`}
                       >
                         <p className={`text-sm font-medium ${isOverdueEntry ? "text-destructive" : ""}`}>
@@ -276,20 +304,16 @@ export default function InvoiceDetailPage({
           </Card>
         </div>
 
-        <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Send Invoice</DialogTitle>
-              <DialogDescription>
-                Send invoice {invoice.invoiceNumber} to {client.email}?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEmailDialog(false)}>Cancel</Button>
-              <Button onClick={handleSendEmail}><Send className="h-4 w-4" /> Send Email</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {emailMode && (
+          <InvoiceEmailDialog
+            open={!!emailMode}
+            onOpenChange={(open) => !open && setEmailMode(null)}
+            invoice={invoice}
+            client={client}
+            mode={emailMode}
+            onConfirm={handleEmailConfirm}
+          />
+        )}
 
         <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
           <DialogContent>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Search, FileText } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -73,9 +75,16 @@ export default function SalarySlipsPage() {
         <Card>
           <CardContent className="pt-6">
             {filteredSlips.length === 0 && runsWithoutSlips.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No salary slips yet. Process a payroll run first, then generate slips.
-              </p>
+              <EmptyState
+                icon="file"
+                title="No salary slips yet"
+                description="Process a payroll run first, then generate slips for your employees."
+                action={
+                  <Button asChild>
+                    <Link href="/payroll">Go to Payroll</Link>
+                  </Button>
+                }
+              />
             ) : filteredSlips.length > 0 ? (
               <div className="space-y-3">
                 {filteredSlips.map((slip) => {
@@ -101,7 +110,11 @@ export default function SalarySlipsPage() {
                 })}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-4">No slips match your search.</p>
+              <EmptyState
+                icon="file"
+                title="No matching salary slips"
+                description="Try adjusting your search by employee name or ID."
+              />
             )}
           </CardContent>
         </Card>

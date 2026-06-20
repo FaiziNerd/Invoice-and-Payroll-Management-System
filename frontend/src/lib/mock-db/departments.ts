@@ -2,6 +2,7 @@ import { getFromStorage, setInStorage } from "./storage";
 import type { Department } from "@/types";
 import { generateId } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
+import { getEmployees } from "./employees";
 
 const KEY = "departments";
 
@@ -67,6 +68,9 @@ export function deleteDepartment(
   const departments = getDepartments();
   const dept = departments.find((d) => d.id === id);
   if (!dept) return false;
+  if (getEmployees().some((emp) => emp.departmentId === id)) {
+    throw new Error("Cannot delete this department because it has assigned employees.");
+  }
   setInStorage(
     KEY,
     departments.filter((d) => d.id !== id)

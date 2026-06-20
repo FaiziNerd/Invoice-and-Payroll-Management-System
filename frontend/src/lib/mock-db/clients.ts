@@ -1,7 +1,8 @@
-import { getFromStorage, setInStorage } from "./storage";
+import { getFromStorage, setInStorage, getAllCompanyIds } from "./storage";
 import type { Client } from "@/types";
 import { generateId } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
+import { getInvoices } from "./invoices";
 
 const KEY = "clients";
 
@@ -11,6 +12,14 @@ export function getClients(): Client[] {
 
 export function getClientById(id: string): Client | undefined {
   return getClients().find((c) => c.id === id);
+}
+
+export function findClientById(id: string): Client | undefined {
+  for (const companyId of getAllCompanyIds()) {
+    const client = getFromStorage<Client[]>(KEY, [], companyId).find((c) => c.id === id);
+    if (client) return client;
+  }
+  return undefined;
 }
 
 export function createClient(
@@ -67,6 +76,9 @@ export function deleteClient(
   const clients = getClients();
   const client = clients.find((c) => c.id === id);
   if (!client) return false;
+  if (getInvoices().some((inv) => inv.clientId === id)) {
+    throw new Error("Cannot delete this client because it has one or more invoices.");
+  }
   setInStorage(
     KEY,
     clients.filter((c) => c.id !== id)

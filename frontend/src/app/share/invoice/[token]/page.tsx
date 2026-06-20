@@ -2,9 +2,10 @@
 
 import { use, useMemo } from "react";
 import { getInvoiceByToken } from "@/lib/mock-db/invoices";
-import { getClientById } from "@/lib/mock-db/clients";
-import { getTemplateById } from "@/lib/mock-db/templates";
+import { findClientById } from "@/lib/mock-db/clients";
+import { findTemplateById } from "@/lib/mock-db/templates";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { InvoiceThemeView } from "@/components/invoices/invoice-theme-view";
 
 export default function PublicInvoicePage({
@@ -14,13 +15,17 @@ export default function PublicInvoicePage({
 }) {
   const { token } = use(params);
   const invoice = useMemo(() => getInvoiceByToken(token), [token]);
-  const client = useMemo(() => (invoice ? getClientById(invoice.clientId) : undefined), [invoice]);
-  const template = useMemo(() => (invoice ? getTemplateById(invoice.templateId) : undefined), [invoice]);
+  const client = useMemo(() => (invoice ? findClientById(invoice.clientId) : undefined), [invoice]);
+  const template = useMemo(() => (invoice ? findTemplateById(invoice.templateId) : undefined), [invoice]);
 
   if (!invoice || !client) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-muted-foreground">Invoice not found or link has expired.</p>
+        <EmptyState
+          icon="file"
+          title="Invoice not found"
+          description="This invoice may have been removed or the share link has expired."
+        />
       </div>
     );
   }

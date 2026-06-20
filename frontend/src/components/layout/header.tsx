@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { CompanySwitcher } from "@/components/layout/company-switcher";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
@@ -19,9 +20,12 @@ export function Header() {
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6">
-      <div className="ml-10 md:ml-0">
-        <p className="text-sm text-muted-foreground">Welcome back,</p>
-        <p className="font-semibold">{session?.name}</p>
+      <div className="ml-10 flex min-w-0 items-center gap-3 md:ml-0">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">Welcome back,</p>
+          <p className="truncate font-semibold">{session?.name}</p>
+        </div>
+        <CompanySwitcher />
       </div>
       <div className="flex items-center gap-2">
         <Badge variant="secondary" className="capitalize hidden sm:inline-flex">

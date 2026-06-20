@@ -15,43 +15,48 @@ import { getDefaultTemplate } from "@/lib/mock-db/templates";
 import { getDepartmentById } from "@/lib/mock-db/departments";
 import { getOrganizationCompanyName } from "@/lib/mock-db/settings";
 
-const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
-  header: {
-    textAlign: "center",
-    marginBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: "#2563eb",
-    paddingBottom: 15,
-  },
-  company: { fontSize: 16, fontWeight: "bold", color: "#2563eb" },
-  title: { fontSize: 14, marginTop: 5 },
-  section: { marginBottom: 12 },
-  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    padding: 6,
-    fontWeight: "bold",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    padding: 6,
-  },
-  col1: { width: "60%" },
-  col2: { width: "40%", textAlign: "right" },
-  netPay: {
-    marginTop: 15,
-    padding: 10,
-    backgroundColor: "#f0f9ff",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  netPayText: { fontSize: 14, fontWeight: "bold", color: "#2563eb" },
-});
+function getSalarySlipPrimaryColor(): string {
+  return getDefaultTemplate()?.branding.primaryColor || "#2563eb";
+}
+
+const createStyles = (primaryColor: string) =>
+  StyleSheet.create({
+    page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
+    header: {
+      textAlign: "center",
+      marginBottom: 20,
+      borderBottomWidth: 2,
+      borderBottomColor: primaryColor,
+      paddingBottom: 15,
+    },
+    company: { fontSize: 16, fontWeight: "bold", color: primaryColor },
+    title: { fontSize: 14, marginTop: 5 },
+    section: { marginBottom: 12 },
+    row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
+    tableHeader: {
+      flexDirection: "row",
+      backgroundColor: primaryColor,
+      color: "#fff",
+      padding: 6,
+      fontWeight: "bold",
+    },
+    tableRow: {
+      flexDirection: "row",
+      borderBottomWidth: 1,
+      borderBottomColor: "#eee",
+      padding: 6,
+    },
+    col1: { width: "60%" },
+    col2: { width: "40%", textAlign: "right" },
+    netPay: {
+      marginTop: 15,
+      padding: 10,
+      backgroundColor: "#f8fafc",
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    netPayText: { fontSize: 14, fontWeight: "bold", color: primaryColor },
+  });
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -75,6 +80,7 @@ interface SalarySlipPDFProps {
   employee: Employee;
   companyName?: string;
   departmentName?: string;
+  primaryColor?: string;
 }
 
 function SalarySlipPDFDocument({
@@ -82,7 +88,10 @@ function SalarySlipPDFDocument({
   employee,
   companyName = getSalarySlipCompanyName(),
   departmentName = getEmployeeDepartmentName(employee),
+  primaryColor = getSalarySlipPrimaryColor(),
 }: SalarySlipPDFProps) {
+  const styles = createStyles(primaryColor);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -157,12 +166,14 @@ function SalarySlipPDFDocument({
 async function generateSalarySlipPDFBlob(slip: SalarySlip, employee: Employee): Promise<Blob> {
   const companyName = getSalarySlipCompanyName();
   const departmentName = getEmployeeDepartmentName(employee);
+  const primaryColor = getSalarySlipPrimaryColor();
   return pdf(
     <SalarySlipPDFDocument
       slip={slip}
       employee={employee}
       companyName={companyName}
       departmentName={departmentName}
+      primaryColor={primaryColor}
     />
   ).toBlob();
 }

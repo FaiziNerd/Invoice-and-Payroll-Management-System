@@ -1,4 +1,4 @@
-import { getFromStorage, setInStorage } from "./storage";
+import { getFromStorage, getAllCompanyIds, setInStorage } from "./storage";
 import type { InvoiceTemplate, TemplateBranding } from "@/types";
 import { generateId } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
@@ -54,8 +54,8 @@ export const PRESET_TEMPLATES: Omit<InvoiceTemplate, "id" | "createdAt" | "updat
   },
 ];
 
-export function getTemplates(): InvoiceTemplate[] {
-  return getFromStorage<InvoiceTemplate[]>(KEY, []);
+export function getTemplates(companyId?: string): InvoiceTemplate[] {
+  return getFromStorage<InvoiceTemplate[]>(KEY, [], companyId);
 }
 
 export function getActiveTemplates(): InvoiceTemplate[] {
@@ -64,6 +64,14 @@ export function getActiveTemplates(): InvoiceTemplate[] {
 
 export function getTemplateById(id: string): InvoiceTemplate | undefined {
   return getTemplates().find((t) => t.id === id);
+}
+
+export function findTemplateById(id: string): InvoiceTemplate | undefined {
+  for (const companyId of getAllCompanyIds()) {
+    const template = getFromStorage<InvoiceTemplate[]>(KEY, [], companyId).find((t) => t.id === id);
+    if (template) return template;
+  }
+  return undefined;
 }
 
 export function getDefaultTemplate(): InvoiceTemplate | undefined {
@@ -196,8 +204,8 @@ export function duplicateTemplate(
   );
 }
 
-export function seedTemplates(): void {
-  if (getTemplates().length > 0) return;
+export function seedTemplates(companyId?: string): void {
+  if (getTemplates(companyId).length > 0) return;
   const now = new Date().toISOString();
   const templates: InvoiceTemplate[] = PRESET_TEMPLATES.map((t) => ({
     ...t,
@@ -205,5 +213,5 @@ export function seedTemplates(): void {
     createdAt: now,
     updatedAt: now,
   }));
-  setInStorage(KEY, templates);
+  setInStorage(KEY, templates, companyId);
 }

@@ -1,4 +1,4 @@
-import { getFromStorage, setInStorage } from "./storage";
+import { getFromStorage, setInStorage, getAllCompanyIds } from "./storage";
 import type { Invoice, InvoiceStatus, InvoiceLineItem } from "@/types";
 import { generateId, generateShareToken } from "@/lib/utils";
 import { addAuditLog } from "@/lib/audit";
@@ -34,7 +34,7 @@ function appendOverdueHistory(invoice: Invoice): Invoice {
   };
 }
 
-function resolveOverdueStatuses(invoices: Invoice[]): Invoice[] {
+function resolveOverdueStatuses(invoices: Invoice[], companyId?: string): Invoice[] {
   let changed = false;
   const updated = invoices.map((invoice) => {
     const isPastDue = new Date(invoice.dueDate) < new Date();
@@ -51,7 +51,7 @@ function resolveOverdueStatuses(invoices: Invoice[]): Invoice[] {
 
     return invoice;
   });
-  if (changed) setInStorage(KEY, updated);
+  if (changed) setInStorage(KEY, updated, companyId);
   return updated;
 }
 
@@ -60,7 +60,12 @@ export function getInvoiceById(id: string): Invoice | undefined {
 }
 
 export function getInvoiceByToken(token: string): Invoice | undefined {
-  return getInvoices().find((i) => i.shareToken === token);
+  for (const companyId of getAllCompanyIds()) {
+    const invoices = getFromStorage<Invoice[]>(KEY, [], companyId);
+    const found = resolveOverdueStatuses(invoices, companyId).find((i) => i.shareToken === token);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 export function calculateInvoiceTotals(
@@ -209,4 +214,56 @@ export function getNextInvoiceNumber(): string {
   const invoices = getInvoices();
   const num = invoices.length + 1;
   return `INV-${String(num).padStart(4, "0")}`;
+}
+
+export function sendInvoiceEmail(
+  id: string,
+  userId: string,
+  userName: string,
+  clientEmail: string,
+  mode: "send" | "resend" | "reminder"
+): Invoice | null {
+  const historyMessages: Record<typeof mode, string> = {
+    send: `Invoice sent to ${clientEmail} (mock)`,
+    resend: `Invoice resent to ${clientEmail} (mock)`,
+    reminder: `Payment reminder sent to ${clientEmail} (mock)`,
+  };
+
+  const updates: Partial<Invoice> = {};
+  if (mode === "send") {
+    updates.status = "sent";
+  }
+
+  const invoice = updateInvoice(
+    id,
+    updates,
+    userId,
+    userName,
+    historyMessages[mode]
+  );
+
+  if (invoice) {
+    const descriptions: Record<typeof mode, string> = {
+      send: `Sent invoice ${invoice.invoiceNumber} to ${clientEmail} (mock)`,
+      resend: `Resent invoice ${invoice.invoiceNumber} to ${clientEmail} (mock)`,
+      reminder: `Sent payment reminder for ${invoice.invoiceNumber} to ${clientEmail} (mock)`,
+    };
+    addAuditLog({
+      action: "send",
+      entity: "invoice",
+      entityId: id,
+      userId,
+      userName,
+      description: descriptions[mode],
+      metadata: { email: clientEmail, mode },
+    });
+  }
+
+  return invoice;
+}
+
+export function getInvoicesNeedingReminder(): Invoice[] {
+  return getInvoices().filter(
+    (inv) => inv.status === "sent" || inv.status === "overdue"
+  );
 }

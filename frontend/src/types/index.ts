@@ -1,5 +1,12 @@
 export type UserRole = "admin" | "accountant" | "hr";
 
+export interface Company {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   name: string;

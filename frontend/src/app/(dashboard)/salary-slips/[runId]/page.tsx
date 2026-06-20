@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { Download, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPayrollRunById } from "@/lib/mock-db/payroll";
@@ -14,6 +15,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
+
 import type { SalarySlip, Employee } from "@/types";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -30,15 +32,36 @@ export default function SalarySlipsRunPage({
   const [downloading, setDownloading] = useState(false);
 
   if (!run) {
-    return <p className="text-center py-20 text-muted-foreground">Payroll run not found</p>;
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <EmptyState
+          icon="file"
+          title="Payroll run not found"
+          description="This payroll run may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/salary-slips">Back to Salary Slips</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   if (run.status === "draft") {
     return (
-      <div className="text-center py-20">
-        <p className="text-muted-foreground mb-4">Process this payroll run before generating salary slips.</p>
-        <Button asChild><Link href={`/payroll/${runId}`}>Go to Payroll Run</Link></Button>
-      </div>
+      <RoleGate roles={["admin", "hr"]}>
+        <EmptyState
+          icon="file"
+          title="Payroll not processed yet"
+          description="Process this payroll run before generating salary slips."
+          action={
+            <Button asChild>
+              <Link href={`/payroll/${runId}`}>Go to Payroll Run</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
     );
   }
 
@@ -104,10 +127,16 @@ export default function SalarySlipsRunPage({
         <Card>
           <CardContent className="pt-6">
             {displaySlips.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No salary slips generated yet for this period.</p>
-                <Button onClick={handleGenerate}>Generate Salary Slips</Button>
-              </div>
+              <EmptyState
+                icon="file"
+                title="No salary slips generated"
+                description="Generate salary slips for all employees in this payroll run."
+                action={
+                  <Button onClick={handleGenerate}>
+                    <FileDown className="h-4 w-4" /> Generate Salary Slips
+                  </Button>
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {displaySlips.map((slip) => {
