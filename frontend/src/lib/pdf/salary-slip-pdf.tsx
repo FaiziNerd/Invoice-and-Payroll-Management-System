@@ -11,9 +11,9 @@ import {
 import JSZip from "jszip";
 import type { SalarySlip, Employee } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { getDefaultTemplate } from "@/lib/mock-db/templates";
-import { getDepartmentById } from "@/lib/mock-db/departments";
-import { getOrganizationCompanyName } from "@/lib/mock-db/settings";
+import { getDefaultTemplate } from "@/lib/repositories/templates";
+import { getDepartmentById } from "@/lib/repositories/departments";
+import { getOrganizationCompanyName } from "@/lib/repositories/settings";
 
 function getSalarySlipPrimaryColor(): string {
   return getDefaultTemplate()?.branding.primaryColor || "#2563eb";

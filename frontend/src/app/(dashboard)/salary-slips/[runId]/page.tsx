@@ -8,9 +8,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getPayrollRunById } from "@/lib/mock-db/payroll";
-import { getSlipsByRunId, generateSlipsForRun } from "@/lib/mock-db/salary-slips";
-import { getEmployeeById } from "@/lib/mock-db/employees";
+import { getPayrollRunById } from "@/lib/repositories/payroll";
+import { getSlipsByRunId, generateSlipsForRun } from "@/lib/repositories/salary-slips";
+import { getEmployeeById } from "@/lib/repositories/employees";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -65,9 +65,9 @@ export default function SalarySlipsRunPage({
     );
   }
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!session) return;
-    const generated = generateSlipsForRun(run, session.userId, session.name);
+    const generated = await generateSlipsForRun(run, session.userId, session.name);
     setSlips(generated);
     toast.success(`Generated ${generated.length} salary slips`);
   };

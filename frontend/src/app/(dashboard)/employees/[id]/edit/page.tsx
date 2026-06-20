@@ -26,8 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/mock-db/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/repositories/employees";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";

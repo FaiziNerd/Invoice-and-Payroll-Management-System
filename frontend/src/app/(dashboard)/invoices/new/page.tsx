@@ -7,8 +7,8 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { AiInvoiceGenerator } from "@/components/invoices/ai-invoice-generator";
-import { createInvoice, getNextInvoiceNumber } from "@/lib/mock-db/invoices";
-import { getDefaultTemplate } from "@/lib/mock-db/templates";
+import { createInvoice, getNextInvoiceNumber } from "@/lib/repositories/invoices";
+import { getDefaultTemplate } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -20,7 +20,7 @@ export default function NewInvoicePage() {
   const [formKey, setFormKey] = useState(0);
   const [aiValues, setAiValues] = useState<Partial<InvoiceFormValues> | undefined>();
 
-  const handleSubmit = (values: InvoiceFormValues) => {
+  const handleSubmit = async (values: InvoiceFormValues) => {
     if (!session || !values.clientId) {
       toast.error("Please select a client");
       return;
@@ -29,23 +29,27 @@ export default function NewInvoicePage() {
       toast.error("Add at least one line item");
       return;
     }
-    const invoice = createInvoice(
-      {
-        invoiceNumber: getNextInvoiceNumber(),
-        clientId: values.clientId,
-        items: values.items,
-        taxRate: values.taxRate,
-        status: "draft",
-        templateId: values.templateId || defaultTemplate?.id || "",
-        issueDate: new Date().toISOString(),
-        dueDate: new Date(values.dueDate).toISOString(),
-        notes: values.notes,
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Invoice created");
-    router.push(`/invoices/${invoice.id}`);
+    try {
+      const invoice = await createInvoice(
+        {
+          invoiceNumber: getNextInvoiceNumber(),
+          clientId: values.clientId,
+          items: values.items,
+          taxRate: values.taxRate,
+          status: "draft",
+          templateId: values.templateId || defaultTemplate?.id || "",
+          issueDate: new Date().toISOString(),
+          dueDate: new Date(values.dueDate).toISOString(),
+          notes: values.notes,
+        },
+        session.userId,
+        session.name
+      );
+      toast.success("Invoice created");
+      router.push(`/invoices/${invoice.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create invoice");
+    }
   };
 
   const handleAiGenerated = (values: InvoiceFormValues, summary: string) => {

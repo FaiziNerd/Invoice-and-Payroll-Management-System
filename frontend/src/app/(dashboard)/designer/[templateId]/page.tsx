@@ -23,7 +23,7 @@ import {
   getTemplateById,
   createTemplate,
   updateTemplate,
-} from "@/lib/mock-db/templates";
+} from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -87,11 +87,11 @@ export default function TemplateEditorPage({
     reader.readAsDataURL(file);
   };
 
-  const persistTemplate = (redirectToPreview = false) => {
+  const persistTemplate = async (redirectToPreview = false) => {
     if (!session) return null;
 
     if (isNew) {
-      const created = createTemplate(
+      const created = await createTemplate(
         { name, isDefault: false, isActive: false, theme, branding },
         session.userId,
         session.name
@@ -106,7 +106,7 @@ export default function TemplateEditorPage({
     }
 
     if (existing) {
-      const updated = updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
+      const updated = await updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
       if (updated) {
         setIsActive(updated.isActive);
         toast.success("Template saved");
@@ -121,11 +121,11 @@ export default function TemplateEditorPage({
   };
 
   const handleSave = () => {
-    persistTemplate(false);
+    void persistTemplate(false);
   };
 
   const handleSaveAndPreview = () => {
-    persistTemplate(true);
+    void persistTemplate(true);
   };
 
   return (

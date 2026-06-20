@@ -15,9 +15,9 @@ import {
   calculateGrossPay,
   calculateTotalDeductions,
   calculateNetPay,
-} from "@/lib/mock-db/employees";
-import { getDepartmentById } from "@/lib/mock-db/departments";
-import { getSlipsByEmployeeId } from "@/lib/mock-db/salary-slips";
+} from "@/lib/repositories/employees";
+import { getDepartmentById } from "@/lib/repositories/departments";
+import { getSlipsByEmployeeId } from "@/lib/repositories/salary-slips";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";

@@ -23,8 +23,8 @@ import {
   updatePayrollEntry,
   processPayrollRun,
   markPayrollPaid,
-} from "@/lib/mock-db/payroll";
-import { getEmployees } from "@/lib/mock-db/employees";
+} from "@/lib/repositories/payroll";
+import { getEmployees } from "@/lib/repositories/employees";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/utils";

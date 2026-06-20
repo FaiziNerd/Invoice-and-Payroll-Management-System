@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { Client, Invoice, InvoiceTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
-import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/mock-db/settings";
+import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/repositories/settings";
 
 type InvoiceTheme = InvoiceTemplate["theme"];
 

@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getTemplateById, publishTemplate } from "@/lib/mock-db/templates";
+import { getTemplateById, publishTemplate } from "@/lib/repositories/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,9 +55,9 @@ export default function TemplatePreviewPage({
 
   const { branding } = template;
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (!session) return;
-    const updated = publishTemplate(templateId, session.userId, session.name);
+    const updated = await publishTemplate(templateId, session.userId, session.name);
     if (updated) {
       setTemplate(updated);
       setShowActivateDialog(false);

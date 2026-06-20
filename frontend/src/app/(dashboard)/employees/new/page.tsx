@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { createEmployee } from "@/lib/mock-db/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { createEmployee } from "@/lib/repositories/employees";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
@@ -60,7 +60,7 @@ export default function NewEmployeePage() {
     return errs;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
     const errs = validate();
@@ -68,7 +68,7 @@ export default function NewEmployeePage() {
       setErrors(errs);
       return;
     }
-    const emp = createEmployee(
+    const emp = await createEmployee(
       {
         ...form,
         joinDate: new Date(form.joinDate).toISOString(),

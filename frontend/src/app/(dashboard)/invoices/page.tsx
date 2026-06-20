@@ -23,8 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getInvoices } from "@/lib/mock-db/invoices";
-import { getClients } from "@/lib/mock-db/clients";
+import { getInvoices } from "@/lib/repositories/invoices";
+import { useClients } from "@/hooks/use-clients";
 import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { TableSkeleton } from "@/components/shared/skeletons";
@@ -50,7 +50,7 @@ export default function InvoicesPage() {
   const [page, setPage] = useState(1);
 
   const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
-  const clients = useStorageData(() => getClients(), ["clients"]);
+  const { clients } = useClients();
 
   const isFiltered =
     search !== "" ||

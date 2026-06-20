@@ -8,11 +8,11 @@ import {
   getInvoices,
   getInvoicesNeedingReminder,
   sendInvoiceEmail,
-} from "@/lib/mock-db/invoices";
-import { getPayrollRuns } from "@/lib/mock-db/payroll";
-import { getClients } from "@/lib/mock-db/clients";
-import { getEmployees } from "@/lib/mock-db/employees";
-import { getDepartments } from "@/lib/mock-db/departments";
+} from "@/lib/repositories/invoices";
+import { getPayrollRuns } from "@/lib/repositories/payroll";
+import { useClients } from "@/hooks/use-clients";
+import { getEmployees } from "@/lib/repositories/employees";
+import { getDepartments } from "@/lib/repositories/departments";
 import { computeInvoiceAging } from "@/lib/invoices/aging";
 import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { KpiSkeleton } from "@/components/shared/skeletons";
@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
   const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
   const payrollRuns = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
-  const clients = useStorageData(() => getClients(), ["clients"]);
+  const { clients } = useClients();
   const employees = useStorageData(() => getEmployees(), ["employees"]);
   const departments = useStorageData(() => getDepartments(), ["departments"]);
 
@@ -180,19 +180,23 @@ export default function DashboardPage() {
     setReminderInvoice(invoice);
   };
 
-  const handleReminderConfirm = () => {
+  const handleReminderConfirm = async () => {
     if (!session || !reminderInvoice) return;
     const client = clients.find((c) => c.id === reminderInvoice.clientId);
     if (!client) return;
-    sendInvoiceEmail(
-      reminderInvoice.id,
-      session.userId,
-      session.name,
-      client.email,
-      "reminder"
-    );
-    toast.success(`Payment reminder sent to ${client.email}`);
-    setReminderInvoice(null);
+    try {
+      await sendInvoiceEmail(
+        reminderInvoice.id,
+        session.userId,
+        session.name,
+        client.email,
+        "reminder"
+      );
+      toast.success(`Payment reminder sent to ${client.email}`);
+      setReminderInvoice(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send reminder");
+    }
   };
 
   const handleExportOutstanding = () => {

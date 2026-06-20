@@ -1,6 +1,6 @@
 import type { Client, Invoice } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getOrganizationCompanyName } from "@/lib/mock-db/settings";
+import { getOrganizationCompanyName } from "@/lib/repositories/settings";
 
 export type EmailMode = "send" | "resend" | "reminder";
 

@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getSettings, updateSettings } from "@/lib/mock-db/settings";
-import { getTemplates } from "@/lib/mock-db/templates";
+import { getSettings, updateSettings } from "@/lib/repositories/settings";
+import { getTemplates } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { toast } from "sonner";

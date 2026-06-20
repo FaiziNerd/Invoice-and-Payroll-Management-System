@@ -11,7 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import type { Invoice, Client, InvoiceTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/mock-db/settings";
+import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/repositories/settings";
 
 function resolveCompany(template?: InvoiceTemplate) {
   return {

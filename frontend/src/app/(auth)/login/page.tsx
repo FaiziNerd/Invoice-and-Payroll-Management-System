@@ -11,12 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-const DEMO_ACCOUNTS = [
-  { email: "admin@dotcode.com", password: "admin123", role: "Admin" },
-  { email: "accountant@dotcode.com", password: "acc123", role: "Accountant" },
-  { email: "hr@dotcode.com", password: "hr123", role: "HR" },
-];
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,11 +30,6 @@ export default function LoginPage() {
     } else {
       toast.error("Invalid email or password");
     }
-  };
-
-  const fillDemo = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
   };
 
   return (
@@ -76,7 +65,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@dotcode.com"
+                  placeholder="you@company.com"
                   required
                 />
               </div>
@@ -114,25 +103,12 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Demo Accounts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => fillDemo(acc.email, acc.password)}
-                aria-label={`Fill ${acc.role} demo credentials`}
-                className="flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent transition-colors"
-              >
-                <span className="font-medium">{acc.role}</span>
-                <span className="text-muted-foreground">{acc.email}</span>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

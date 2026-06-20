@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getPayrollRuns } from "@/lib/mock-db/payroll";
+import { getPayrollRuns } from "@/lib/repositories/payroll";
 import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";

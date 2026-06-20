@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createPayrollRun, getPayrollRunByMonth } from "@/lib/mock-db/payroll";
+import { createPayrollRun, getPayrollRunByMonth } from "@/lib/repositories/payroll";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -29,13 +29,13 @@ export default function RunPayrollPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
-  const handleRun = () => {
+  const handleRun = async () => {
     if (!session) return;
     if (getPayrollRunByMonth(month, year)) {
       toast.error("Payroll already exists for this period");
       return;
     }
-    const run = createPayrollRun(month, year, session.userId, session.name);
+    const run = await createPayrollRun(month, year, session.userId, session.name);
     if (run) {
       toast.success("Payroll run created");
       router.push(`/payroll/${run.id}`);

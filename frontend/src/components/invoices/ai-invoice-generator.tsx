@@ -5,8 +5,8 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getClients } from "@/lib/mock-db/clients";
-import { getDefaultTemplate } from "@/lib/mock-db/templates";
+import { loadClientsFromApi } from "@/lib/repositories/clients";
+import { getDefaultTemplate } from "@/lib/repositories/templates";
 import { generateMockAiInvoice } from "@/lib/invoices/ai-generator";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 
@@ -23,8 +23,7 @@ export function AiInvoiceGenerator({ onGenerated }: AiInvoiceGeneratorProps) {
     if (!prompt.trim()) return;
     setLoading(true);
 
-    setTimeout(() => {
-      const clients = getClients();
+    void loadClientsFromApi().then((clients) => {
       const defaultTemplate = getDefaultTemplate();
       const draft = generateMockAiInvoice(
         prompt,
@@ -35,7 +34,7 @@ export function AiInvoiceGenerator({ onGenerated }: AiInvoiceGeneratorProps) {
       setLastSummary(aiSummary);
       onGenerated(values, aiSummary);
       setLoading(false);
-    }, 800);
+    });
   };
 
   return (

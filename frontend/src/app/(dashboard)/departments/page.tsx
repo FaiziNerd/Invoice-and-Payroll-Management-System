@@ -30,7 +30,7 @@ import {
   createDepartment,
   updateDepartment,
   deleteDepartment,
-} from "@/lib/mock-db/departments";
+} from "@/lib/repositories/departments";
 import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";

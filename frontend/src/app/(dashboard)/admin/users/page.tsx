@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,7 +11,7 @@ import {
   updateUser,
   deleteUser,
   USER_ROLES,
-} from "@/lib/mock-db/auth";
+} from "@/lib/auth/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,14 +55,23 @@ const emptyForm: UserForm = { name: "", email: "", role: "accountant", password:
 
 export default function UsersPage() {
   const { session } = useAuth();
-  const [users, setUsers] = useState(() => getUsers());
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>(emptyForm);
 
-  const refresh = () => setUsers(getUsers());
+  const refresh = async () => {
+    setLoading(true);
+    setUsers(await getUsers());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, [session?.companyId]);
 
   const openCreate = () => {
     setEditing(null);
@@ -76,14 +85,14 @@ export default function UsersPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session || !form.name || !form.email) {
       toast.error("Name and email are required");
       return;
     }
     try {
       if (editing) {
-        updateUser(
+        await updateUser(
           editing.id,
           {
             name: form.name,
@@ -100,24 +109,24 @@ export default function UsersPage() {
           toast.error("Password is required for new users");
           return;
         }
-        createUser(form, session.userId, session.name);
+        await createUser(form, session.userId, session.name);
         toast.success("User created");
       }
       setDialogOpen(false);
-      refresh();
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save user");
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!session || !deleting) return;
     try {
-      deleteUser(deleting.id, session.userId, session.name);
-      toast.success("User deleted");
+      await deleteUser(deleting.id, session.userId, session.name);
+      toast.success("User removed from company");
       setDeleteOpen(false);
       setDeleting(null);
-      refresh();
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete user");
     }
@@ -134,7 +143,9 @@ export default function UsersPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {users.length === 0 ? (
+            {loading ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>
+            ) : users.length === 0 ? (
               <EmptyState
                 icon="users"
                 title="No users yet"
@@ -249,14 +260,14 @@ export default function UsersPage() {
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete User</DialogTitle>
+              <DialogTitle>Remove User</DialogTitle>
               <DialogDescription>
-                Delete {deleting?.name}? This cannot be undone.
+                Remove {deleting?.name} from this company? Their account will remain but lose access here.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+              <Button variant="destructive" onClick={handleDelete}>Remove</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

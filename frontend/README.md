@@ -1,6 +1,6 @@
 # Invoice & Payroll Management System
 
-A frontend-only **Invoice & Payroll Management Platform** built with Next.js 15, TypeScript, and Tailwind CSS. All data is stored in `localStorage` with a mock service layer — no backend required.
+A multi-company **Invoice & Payroll Management Platform** built with Next.js 15, TypeScript, Tailwind CSS, and **Supabase** (PostgreSQL + Auth). Business data is stored in Supabase; the frontend uses repository facades that call REST API routes with company-scoped RLS.
 
 ## Getting Started
 
@@ -21,33 +21,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Demo Accounts
+### Environment
 
-| Role       | Email                  | Password  |
-|------------|------------------------|-----------|
-| Admin      | admin@dotcode.com      | admin123  |
-| Accountant | accountant@dotcode.com | acc123    |
-| HR         | hr@dotcode.com         | hr123     |
+Copy `.env.local.example` to `.env.local` and set your Supabase project URL and keys. Apply `supabase/schema.sql` (and `migrate-multi-company.sql` only if upgrading an older database) in the Supabase SQL Editor.
 
-> **Tip:** Log in as **Admin** to access the multi-company switcher in the header, user management, org settings, and activity log.
+### Auth
+
+Use `/signup` to create a company (admin) or `/login` for existing users. Admins can invite users at `/admin/users`. Roles: **admin**, **accountant**, **hr**.
 
 ---
 
 ## Demo Walkthrough
 
 1. **Landing page** — Visit `/` for the public marketing page, then click **Get Started** or **Sign in**.
-2. **Login** — Use `admin@dotcode.com` / `admin123` for full access.
-3. **Multi-company (Admin)** — Use the company dropdown in the header to switch between **DotCode Solutions** and **Acme Holdings**. Invoices, clients, employees, payroll, and settings are scoped per company.
+2. **Sign up / Login** — Create a company or sign in with your Supabase-backed account.
+3. **Multi-company (Admin)** — Use the company dropdown in the header to switch companies. Invoices, clients, employees, payroll, and settings are scoped per company.
 4. **Dashboard** — Review revenue, payroll, outstanding invoices, aging chart, MoM KPI badges, AI insights card, and payment-reminder widget.
-5. **Invoices** — Create, edit, send/resend mock emails, send payment reminders, download PDFs, and share via public link + QR code.
+5. **Invoices** — Create, edit, send/resend emails, send payment reminders, download PDFs, and share via public link + QR code.
 6. **Designer** — Customize invoice templates (classic / modern / minimal themes) with branding colors and live preview.
 7. **Clients** — Manage client records (delete blocked when invoices exist).
 8. **Employees & Departments** — HR workflows with salary structures; delete guards when referenced in payroll.
 9. **Payroll** — Run monthly payroll, view reports, export CSV, generate salary slip PDFs.
 10. **Admin** — Manage users, organization settings (company name/address for PDFs), and audit activity log.
 11. **Public share** — Open `/share/invoice/[token]` from an invoice detail page to preview the client-facing view.
-
-To reset demo data, clear site data in your browser (localStorage keys prefixed with `ipms_`).
 
 ---
 
@@ -175,15 +171,20 @@ To reset demo data, clear site data in your browser (localStorage keys prefixed 
 ```
 src/
   app/
-    (auth)/login/           # Public login
+    (auth)/login/           # Public login & signup
     (dashboard)/            # Protected app routes
+    api/                    # REST routes → Supabase (company-scoped)
     share/invoice/[token]   # Public invoice view
   components/
     layout/                 # Header, sidebar, company switcher
     shared/                 # EmptyState, PageHeader, etc.
-  data/seed.ts              # Multi-company demo seed
-  hooks/use-storage-data.ts # Reactive localStorage hook
-  lib/mock-db/              # localStorage CRUD + company scoping
+  data/seed.ts              # Legacy stub (no demo seed on login)
+  hooks/use-storage-data.ts # Reactive data hook (DATA_CHANGE_EVENT)
+  lib/
+    auth/client.ts          # Session client
+    company/context.ts      # Active company id (localStorage)
+    repositories/           # API facades + in-memory cache
+    api/                    # Shared fetch helpers, Zod schemas
   lib/pdf/                  # PDF generation
   providers/                # Auth, theme, query providers
   types/                    # TypeScript interfaces
@@ -200,4 +201,4 @@ npm run lint     # Run ESLint
 
 ## Notes
 
-This is a **frontend-only** prototype. Data persists in browser `localStorage` and resets if you clear site data. No real backend, AI API, or SMTP email delivery — all external integrations are mocked for demo and UI/UX validation.
+Data persists in **Supabase**. On login, the auth provider preloads company data via `/api/*` routes. Row-level security enforces company isolation. New companies receive three default invoice templates on signup; existing companies may need templates seeded manually if the table is empty.

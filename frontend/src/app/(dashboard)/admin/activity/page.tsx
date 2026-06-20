@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Download, Search } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { getAuditLogs } from "@/lib/audit";
+import { loadAuditLogsFromApi } from "@/lib/audit";
+import type { AuditLog } from "@/types";
 import { exportToCSV } from "@/lib/csv";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,8 +44,11 @@ export default function ActivityPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [entityFilter, setEntityFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [allLogs, setAllLogs] = useState<AuditLog[]>([]);
 
-  const allLogs = useMemo(() => getAuditLogs(), []);
+  useEffect(() => {
+    void loadAuditLogsFromApi().then(setAllLogs);
+  }, []);
 
   const filtered = useMemo(() => {
     return allLogs.filter((log) => {

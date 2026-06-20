@@ -16,8 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getEmployees, calculateNetPay } from "@/lib/mock-db/employees";
-import { getDepartments } from "@/lib/mock-db/departments";
+import { getEmployees, calculateNetPay } from "@/lib/repositories/employees";
+import { getDepartments } from "@/lib/repositories/departments";
 import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
