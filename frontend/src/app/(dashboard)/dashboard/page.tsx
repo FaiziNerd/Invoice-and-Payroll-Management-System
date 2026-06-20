@@ -62,7 +62,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { Invoice } from "@/types";
 
-
 function ChartPlaceholder({ message }: { message: string }) {
   return (
     <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
