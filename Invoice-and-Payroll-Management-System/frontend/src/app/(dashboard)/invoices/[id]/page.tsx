@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +155,12 @@ export default function InvoiceDetailPage({
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Invoices", href: "/invoices" },
+            { label: invoice.invoiceNumber },
+          ]}
+        />
         <PageHeader title={invoice.invoiceNumber} description={`Invoice for ${client.name}`}>
           <div className="flex flex-wrap gap-2">
             {invoice.status !== "paid" && (
@@ -187,7 +194,7 @@ export default function InvoiceDetailPage({
                 </Button>
               </>
             )}
-            <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+            <Button variant="destructive" size="sm" aria-label="Delete invoice" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -337,7 +344,7 @@ export default function InvoiceDetailPage({
                   disabled={!shareUrl}
                   aria-label={linkCopied ? "Link copied" : "Copy link"}
                 >
-                  {linkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  {linkCopied ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>

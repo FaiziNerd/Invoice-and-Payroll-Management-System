@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, FileText } from "lucide-react";
+import { Search, FileText, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Input } from "@/components/ui/input";
@@ -62,15 +62,28 @@ export default function SalarySlipsPage() {
           </Card>
         )}
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by employee name or ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-3 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by employee name or ID..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {search && (
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")} aria-label="Clear search">
+              <X className="h-4 w-4" /> Clear
+            </Button>
+          )}
         </div>
+
+        {slips.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredSlips.length} of {slips.length} results
+          </p>
+        )}
 
         <Card>
           <CardContent className="pt-6">
@@ -114,6 +127,13 @@ export default function SalarySlipsPage() {
                 icon="file"
                 title="No matching salary slips"
                 description="Try adjusting your search by employee name or ID."
+                action={
+                  search ? (
+                    <Button variant="outline" onClick={() => setSearch("")}>
+                      <X className="h-4 w-4" /> Clear search
+                    </Button>
+                  ) : undefined
+                }
               />
             )}
           </CardContent>

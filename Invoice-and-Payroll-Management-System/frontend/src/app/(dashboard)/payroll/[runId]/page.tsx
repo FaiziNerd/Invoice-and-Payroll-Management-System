@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CheckCircle, Download, Play } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +125,12 @@ export default function PayrollDetailPage({
   return (
     <RoleGate roles={["admin", "accountant", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Payroll", href: "/payroll" },
+            { label: `${MONTHS[run.month - 1]} ${run.year}` },
+          ]}
+        />
         <PageHeader
           title={`${MONTHS[run.month - 1]} ${run.year} Payroll`}
           description={`${run.entries.length} employees`}
@@ -163,7 +170,7 @@ export default function PayrollDetailPage({
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Total Net</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(run.totalNet)}</p></CardContent>
+            <CardContent><p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(run.totalNet)}</p></CardContent>
           </Card>
         </div>
 

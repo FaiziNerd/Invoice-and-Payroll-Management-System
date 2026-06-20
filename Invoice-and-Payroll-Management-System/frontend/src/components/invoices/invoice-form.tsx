@@ -16,7 +16,7 @@ import {
 import { getClients } from "@/lib/mock-db/clients";
 import { getActiveTemplates } from "@/lib/mock-db/templates";
 import { generateId } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import type { Client, Invoice, InvoiceLineItem } from "@/types";
 
 export interface InvoiceFormValues {
@@ -66,7 +66,11 @@ export function InvoiceForm({
     initialValues?.items?.length ? initialValues.items : [defaultItem()]
   );
 
+  const [clientError, setClientError] = useState("");
+  const [itemsError, setItemsError] = useState("");
+
   const updateItem = (id: string, field: keyof InvoiceLineItem, value: string | number) => {
+    setItemsError("");
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
@@ -86,7 +90,21 @@ export function InvoiceForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validItems = items.filter((i) => i.description && i.amount > 0);
+    let valid = true;
+
+    if (!clientId) {
+      setClientError("Please select a client");
+      valid = false;
+    }
+
+    const validItems = items.filter((i) => i.description.trim() && i.amount > 0);
+    if (validItems.length === 0) {
+      setItemsError("Add at least one line item with a description and amount greater than zero");
+      valid = false;
+    }
+
+    if (!valid) return;
+
     onSubmit({ clientId, templateId, taxRate, dueDate, notes, items: validItems });
   };
 
@@ -96,20 +114,30 @@ export function InvoiceForm({
         <CardHeader><CardTitle>Invoice Details</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+            <Label htmlFor="inv-client">Client</Label>
+            <Select
+              value={clientId}
+              onValueChange={(v) => { setClientId(v); setClientError(""); }}
+            >
+              <SelectTrigger id="inv-client" className={clientError ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select client" />
+              </SelectTrigger>
               <SelectContent>
                 {clients.map((c: Client) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {clientError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <X className="h-3 w-3" />{clientError}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
-            <Label>Template</Label>
+            <Label htmlFor="inv-template">Template</Label>
             <Select value={templateId} onValueChange={setTemplateId}>
-              <SelectTrigger><SelectValue placeholder="Select template" /></SelectTrigger>
+              <SelectTrigger id="inv-template"><SelectValue placeholder="Select template" /></SelectTrigger>
               <SelectContent>
                 {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -118,12 +146,12 @@ export function InvoiceForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Label htmlFor="inv-due-date">Due Date</Label>
+            <Input id="inv-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Tax Rate (%)</Label>
-            <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+            <Label htmlFor="inv-tax-rate">Tax Rate (%)</Label>
+            <Input id="inv-tax-rate" type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
           </div>
         </CardContent>
       </Card>
@@ -136,38 +164,52 @@ export function InvoiceForm({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {itemsError && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <X className="h-3 w-3" />{itemsError}
+            </p>
+          )}
           {items.map((item) => (
             <div key={item.id} className="grid gap-3 sm:grid-cols-12 items-end">
               <div className="sm:col-span-5 space-y-1">
-                <Label>Description</Label>
+                <Label htmlFor={`item-${item.id}-desc`}>Description</Label>
                 <Input
+                  id={`item-${item.id}-desc`}
                   value={item.description}
                   onChange={(e) => updateItem(item.id, "description", e.target.value)}
                   placeholder="Service description"
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Qty</Label>
+                <Label htmlFor={`item-${item.id}-qty`}>Qty</Label>
                 <Input
+                  id={`item-${item.id}-qty`}
                   type="number"
                   value={item.quantity}
                   onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Price</Label>
+                <Label htmlFor={`item-${item.id}-price`}>Price</Label>
                 <Input
+                  id={`item-${item.id}-price`}
                   type="number"
                   value={item.unitPrice}
                   onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Amount</Label>
-                <Input value={item.amount.toFixed(2)} readOnly />
+                <Label htmlFor={`item-${item.id}-amount`}>Amount</Label>
+                <Input id={`item-${item.id}-amount`} value={item.amount.toFixed(2)} readOnly />
               </div>
               <div className="sm:col-span-1">
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remove line item"
+                  onClick={() => removeItem(item.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -179,8 +221,8 @@ export function InvoiceForm({
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
+            <Label htmlFor="inv-notes">Notes</Label>
+            <Textarea id="inv-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
           </div>
         </CardContent>
       </Card>
