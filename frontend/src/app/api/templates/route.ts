@@ -9,23 +9,31 @@ const WRITE_ROLES = ["admin", "accountant"] as const;
 const TEMPLATE_COLUMNS =
   "id, company_id, name, is_default, is_active, theme, branding_logo, branding_primary_color, branding_secondary_color, branding_font_family, branding_show_logo, branding_show_notes, branding_show_payment_terms, branding_show_footer, branding_company_name, branding_company_address, branding_payment_terms, branding_footer_text, created_at, updated_at";
 
-export async function GET() {
+export async function GET(request: Request) {
   const result = await requireCompanyContext();
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
 
-  try {
-    await ensureCompanyTemplates(companyId);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to seed templates";
-    return fail("INTERNAL_ERROR", message, 500);
+  const trashOnly = new URL(request.url).searchParams.get("trash") === "true";
+
+  if (!trashOnly) {
+    try {
+      await ensureCompanyTemplates(companyId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to seed templates";
+      return fail("INTERNAL_ERROR", message, 500);
+    }
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("invoice_templates")
     .select(TEMPLATE_COLUMNS)
     .eq("company_id", companyId)
     .order("created_at", { ascending: true });
+
+  query = trashOnly ? query.not("deleted_at", "is", null) : query.is("deleted_at", null);
+
+  const { data, error } = await query;
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);

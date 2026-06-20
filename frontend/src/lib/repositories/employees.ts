@@ -1,8 +1,41 @@
 import type { Employee, SalaryStructure } from "@/types";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/fetch";
 import { notifyDataChange } from "@/lib/data/events";
+import type { PaginatedResponse } from "@/lib/api/pagination";
+
+type ApiResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: { code: string; message: string } };
 
 let employeesCache: Employee[] = [];
+
+async function parseApi<T>(res: Response): Promise<T> {
+  const json = (await res.json()) as ApiResult<T>;
+  if (!json.success) {
+    throw new Error(json.error?.message ?? "Request failed");
+  }
+  return json.data;
+}
+
+async function fetchAllActiveEmployees(): Promise<Employee[]> {
+  const all: Employee[] = [];
+  let cursor: string | null = null;
+
+  for (let page = 0; page < 20; page += 1) {
+    const params = new URLSearchParams({ limit: "100" });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/employees?${params.toString()}`, {
+      credentials: "include",
+    });
+    if (!res.ok) break;
+    const pageData = await parseApi<PaginatedResponse<Employee>>(res);
+    all.push(...pageData.items);
+    if (!pageData.hasMore || !pageData.nextCursor) break;
+    cursor = pageData.nextCursor;
+  }
+
+  return all;
+}
 
 function upsertCache(employee: Employee): void {
   const index = employeesCache.findIndex((e) => e.id === employee.id);
@@ -19,7 +52,7 @@ function removeFromCache(id: string): void {
 
 export async function loadEmployeesFromApi(): Promise<Employee[]> {
   try {
-    employeesCache = await apiGet<Employee[]>("/api/employees");
+    employeesCache = await fetchAllActiveEmployees();
   } catch {
     employeesCache = [];
   }
@@ -75,6 +108,13 @@ export async function updateEmployee(
   } catch {
     return null;
   }
+}
+
+export async function restoreEmployee(id: string): Promise<Employee> {
+  const employee = await apiPatch<Employee>(`/api/employees/${id}`, { restore: true });
+  upsertCache(employee);
+  notifyDataChange("employees");
+  return employee;
 }
 
 export async function deleteEmployee(

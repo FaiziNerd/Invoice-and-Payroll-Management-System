@@ -27,7 +27,9 @@ export const templateFieldsSchema = z.object({
 
 export const createTemplateSchema = templateFieldsSchema;
 
-export const updateTemplateSchema = templateFieldsSchema.partial().refine(
-  (data) => Object.keys(data).length > 0,
-  { message: "At least one field is required" }
-);
+export const updateTemplateSchema = templateFieldsSchema
+  .partial()
+  .extend({ restore: z.boolean().optional() })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });

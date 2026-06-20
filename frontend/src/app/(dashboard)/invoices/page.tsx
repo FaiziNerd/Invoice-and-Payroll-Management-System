@@ -23,9 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getInvoices } from "@/lib/repositories/invoices";
 import { useClients } from "@/hooks/use-clients";
-import { useStorageDataWithLoading, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
+import type { Invoice } from "@/types";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
@@ -35,7 +36,7 @@ import { RoleGate } from "@/components/auth/role-gate";
 type SortField = "amount" | "dueDate" | "status" | null;
 type SortDir = "asc" | "desc";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 const STATUS_ORDER = ["draft", "sent", "overdue", "paid"];
 
@@ -50,9 +51,15 @@ export default function InvoicesPage() {
   const [page, setPage] = useState(1);
 
   const companyReady = useCompanyDataReady();
-  const { data: invoices } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
+  const {
+    items: invoices,
+    loading: listLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
+  } = usePaginatedList<Invoice>("/api/invoices");
   const { clients } = useClients();
-  const isLoading = !companyReady;
+  const isLoading = !companyReady || listLoading;
 
   const isFiltered =
     search !== "" ||
@@ -296,6 +303,13 @@ export default function InvoicesPage() {
                   })}
                 </div>
                 <DataTablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+                {hasMore && (
+                  <div className="flex justify-center pt-2">
+                    <Button variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
+                      {loadingMore ? "Loading..." : "Load more from server"}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </CardContent>

@@ -15,13 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getPayrollRuns } from "@/lib/repositories/payroll";
-import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { usePaginatedList } from "@/hooks/use-paginated-list";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
+import type { PayrollRun } from "@/types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 10;
@@ -30,7 +31,15 @@ type SortField = "period" | "grossPay" | null;
 type SortDir = "asc" | "desc";
 
 export default function PayrollPage() {
-  const { data: runs, isLoading } = useStorageDataWithLoading(() => getPayrollRuns(), ["payroll_runs"]);
+  const companyReady = useCompanyDataReady();
+  const {
+    items: runs,
+    loading: listLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
+  } = usePaginatedList<PayrollRun>("/api/payroll");
+  const isLoading = !companyReady || listLoading;
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
@@ -103,7 +112,7 @@ export default function PayrollPage() {
                           <button
                             className="inline-flex items-center gap-1 font-medium hover:text-foreground"
                             onClick={() => handleSort("period")}
-                            aria-label={`Sort by period`}
+                            aria-label="Sort by period"
                           >
                             Period <SortIcon field="period" />
                           </button>
@@ -113,7 +122,7 @@ export default function PayrollPage() {
                           <button
                             className="inline-flex items-center gap-1 font-medium hover:text-foreground"
                             onClick={() => handleSort("grossPay")}
-                            aria-label={`Sort by gross pay`}
+                            aria-label="Sort by gross pay"
                           >
                             Total Gross <SortIcon field="grossPay" />
                           </button>
@@ -152,6 +161,13 @@ export default function PayrollPage() {
                   ))}
                 </div>
                 <DataTablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+                {hasMore && (
+                  <div className="flex justify-center pt-2">
+                    <Button variant="outline" onClick={() => void loadMore()} disabled={loadingMore}>
+                      {loadingMore ? "Loading..." : "Load more from server"}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </CardContent>

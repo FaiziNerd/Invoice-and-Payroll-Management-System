@@ -3,7 +3,6 @@ import {
   getCurrentCompanyId,
   setCurrentCompanyId as setStoredCompanyId,
 } from "@/lib/company/context";
-import { addAuditLog } from "@/lib/repositories/audit";
 import { SESSION_REFRESH_EVENT } from "@/lib/auth/client";
 
 let companiesCache: Company[] = [];
@@ -87,16 +86,6 @@ export async function switchCompany(
 
   setStoredCompanyId(companyId);
   window.dispatchEvent(new CustomEvent(SESSION_REFRESH_EVENT));
-
-  void addAuditLog({
-    action: "update",
-    entity: "company",
-    entityId: companyId,
-    userId,
-    userName,
-    description: `Switched company from ${getCompanyById(previousId)?.name ?? previousId} to ${company.name}`,
-    metadata: { previousCompanyId: previousId, companyId },
-  });
 
   return company;
 }

@@ -7,6 +7,7 @@ import {
   payrollPaidError,
 } from "@/lib/api/payroll/status";
 import type { PayrollStatus } from "@/types";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "accountant", "hr"] as const;
 const RUN_SELECT =
@@ -18,7 +19,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   const { data: existing, error: existingError } = await supabase
     .from("payroll_runs")
@@ -79,6 +80,18 @@ export async function POST(_request: Request, { params }: RouteContext) {
   if (!data) {
     return fail("NOT_FOUND", "Payroll run not found", 404);
   }
+
+  const actorName = await getActorName(supabase, user.id);
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "status_change",
+    entity: "payroll_run",
+    entityId: id,
+    description: `Marked payroll run ${data.month}/${data.year} as paid`,
+    metadata: { before: { status: currentStatus }, after: { status: "paid" } },
+  });
 
   return ok(rowToPayrollRun(data as PayrollRunRow));
 }

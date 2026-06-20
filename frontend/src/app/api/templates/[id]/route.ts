@@ -68,9 +68,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
   }
 
+  const updates: Record<string, unknown> = templatePatchToRow(parsed.data);
+  if (parsed.data.restore === true) {
+    updates.deleted_at = null;
+  }
+
   const { data, error } = await supabase
     .from("invoice_templates")
-    .update(templatePatchToRow(parsed.data))
+    .update(updates)
     .eq("id", id)
     .eq("company_id", companyId)
     .select(TEMPLATE_COLUMNS)
@@ -114,9 +119,10 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const { data, error } = await supabase
     .from("invoice_templates")
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .eq("company_id", companyId)
+    .is("deleted_at", null)
     .select("id")
     .maybeSingle();
 

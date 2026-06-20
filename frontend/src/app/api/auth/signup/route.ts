@@ -26,6 +26,13 @@ const signupSchema = z.discriminatedUnion("mode", [
     name: z.string().min(1),
     inviteCode: z.string().min(32, "A valid invite code is required"),
   }),
+  z.object({
+    mode: z.literal("join-slug"),
+    email: z.string().email(),
+    password: z.string().min(6),
+    name: z.string().min(1),
+    companySlug: z.string().min(1),
+  }),
 ]);
 
 export async function POST(request: Request) {
@@ -61,7 +68,9 @@ export async function POST(request: Request) {
 
   const userId = created.user.id;
   let companyId: string;
-  let memberRole: "admin" | "accountant" | "hr" = "admin";
+  let memberRole: "admin" | "accountant" | "hr" | "employee" = "admin";
+  let memberStatus: "active" | "pending" = "active";
+  let employeeId: string | null = null;
 
   if (input.mode === "create") {
     const slug = input.companySlug?.trim() || slugify(input.companyName);
@@ -94,18 +103,19 @@ export async function POST(request: Request) {
       company_id: companyId,
       user_id: userId,
       role: "admin",
+      status: "active",
     });
 
     if (memberError) {
       await admin.auth.admin.deleteUser(userId);
       return fail("INTERNAL_ERROR", memberError.message, 500);
     }
-  } else {
+  } else if (input.mode === "join") {
     const inviteToken = input.inviteCode.trim().toLowerCase();
 
     const { data: invite, error: inviteError } = await admin
       .from("company_invites")
-      .select("id, company_id, role, used_at, expires_at")
+      .select("id, company_id, role, email, employee_id, used_at, expires_at, revoked_at")
       .eq("token", inviteToken)
       .maybeSingle();
 
@@ -114,7 +124,7 @@ export async function POST(request: Request) {
       return fail("INTERNAL_ERROR", inviteError.message, 500);
     }
 
-    if (!invite) {
+    if (!invite || invite.revoked_at) {
       await admin.auth.admin.deleteUser(userId);
       return fail("NOT_FOUND", "Invalid or expired invite code", 404);
     }
@@ -129,18 +139,38 @@ export async function POST(request: Request) {
       return fail("VALIDATION_ERROR", "This invite code has expired", 400);
     }
 
+    if (invite.email && invite.email.toLowerCase() !== input.email.toLowerCase()) {
+      await admin.auth.admin.deleteUser(userId);
+      return fail(
+        "FORBIDDEN",
+        "This invite is reserved for a different email address",
+        403
+      );
+    }
+
     companyId = invite.company_id;
-    memberRole = invite.role as "admin" | "accountant" | "hr";
+    memberRole = invite.role as "admin" | "accountant" | "hr" | "employee";
+    employeeId = invite.employee_id;
 
     const { error: memberError } = await admin.from("company_members").insert({
       company_id: companyId,
       user_id: userId,
       role: memberRole,
+      status: "active",
+      employee_id: employeeId,
     });
 
     if (memberError) {
       await admin.auth.admin.deleteUser(userId);
       return fail("INTERNAL_ERROR", memberError.message, 500);
+    }
+
+    if (employeeId) {
+      await admin
+        .from("employees")
+        .update({ user_id: userId })
+        .eq("id", employeeId)
+        .eq("company_id", companyId);
     }
 
     const { error: useError } = await admin
@@ -153,6 +183,34 @@ export async function POST(request: Request) {
       await admin.from("company_members").delete().eq("user_id", userId).eq("company_id", companyId);
       await admin.auth.admin.deleteUser(userId);
       return fail("CONFLICT", "Invite code was already used", 409);
+    }
+  } else {
+    const slug = input.companySlug.trim().toLowerCase();
+    const { data: company, error: companyError } = await admin
+      .from("companies")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      await admin.auth.admin.deleteUser(userId);
+      return fail("NOT_FOUND", "Company not found", 404);
+    }
+
+    companyId = company.id;
+    memberRole = "accountant";
+    memberStatus = "pending";
+
+    const { error: memberError } = await admin.from("company_members").insert({
+      company_id: companyId,
+      user_id: userId,
+      role: memberRole,
+      status: "pending",
+    });
+
+    if (memberError) {
+      await admin.auth.admin.deleteUser(userId);
+      return fail("INTERNAL_ERROR", memberError.message, 500);
     }
   }
 
@@ -188,7 +246,9 @@ export async function POST(request: Request) {
     description:
       input.mode === "create"
         ? `${input.name.trim()} created company and signed up as admin`
-        : `${input.name.trim()} joined via invite as ${memberRole}`,
+        : input.mode === "join"
+          ? `${input.name.trim()} joined via invite as ${memberRole}`
+          : `${input.name.trim()} requested access via company slug (pending approval)`,
   });
 
   const session = await buildAppSession(supabase, user, companyId);

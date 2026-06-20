@@ -2,18 +2,27 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { createInvoiceSchema } from "@/lib/api/invoices/schemas";
 import {
+  INVOICE_SELECT,
   invoiceInsertToRow,
   rowToInvoice,
   type InvoiceHistoryRow,
   type InvoiceItemRow,
   type InvoiceRow,
 } from "@/lib/api/invoices/mappers";
+import { normalizeLineItems } from "@/lib/api/invoices/utils";
+import { allocateNextInvoiceNumber } from "@/lib/api/invoices/numbering";
 import {
-  calculateInvoiceTotals,
-  normalizeLineItems,
-} from "@/lib/api/invoices/utils";
+  calculateTaxTotals,
+  defaultTaxConfig,
+  getActiveOrgTaxConfig,
+} from "@/lib/api/tax/config";
 import { generateSecureShareToken } from "@/lib/server/tokens";
-import { recordAuditLog } from "@/lib/server/record-audit-log";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
+import {
+  applyCursorFilter,
+  buildPaginatedResponse,
+  parseListParams,
+} from "@/lib/api/pagination";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -25,34 +34,42 @@ type InvoiceWithRelations = InvoiceRow & {
 function mapInvoice(row: InvoiceWithRelations) {
   return rowToInvoice(
     row,
-    (row.invoice_items ?? []).sort((a, b) =>
-      a.id.localeCompare(b.id)
-    ),
+    (row.invoice_items ?? []).sort((a, b) => a.id.localeCompare(b.id)),
     (row.invoice_history ?? []).sort((a, b) =>
       b.timestamp.localeCompare(a.timestamp)
     )
   );
 }
 
-export async function GET() {
+const ITEMS_HISTORY_SELECT =
+  ", invoice_items(id, invoice_id, description, quantity, unit_price, amount), invoice_history(id, invoice_id, action, timestamp, user_id, user_name)";
+
+export async function GET(request: Request) {
   const result = await requireCompanyContext();
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
 
-  const { data, error } = await supabase
+  const url = new URL(request.url);
+  const { limit, cursor } = parseListParams(url);
+
+  let query = supabase
     .from("invoices")
-    .select(
-      "id, company_id, invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, template_id, share_token, issue_date, due_date, notes, created_at, updated_at, invoice_items(id, invoice_id, description, quantity, unit_price, amount), invoice_history(id, invoice_id, action, timestamp, user_id, user_name)"
-    )
+    .select(INVOICE_SELECT + ITEMS_HISTORY_SELECT)
     .eq("company_id", companyId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  query = applyCursorFilter(query, cursor);
+
+  const { data, error } = await query;
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
-  const invoices = ((data ?? []) as InvoiceWithRelations[]).map(mapInvoice);
-  return ok(invoices);
+  const mapped = ((data ?? []) as unknown as InvoiceWithRelations[]).map(mapInvoice);
+  return ok(buildPaginatedResponse(mapped, limit));
 }
 
 export async function POST(request: Request) {
@@ -76,8 +93,38 @@ export async function POST(request: Request) {
     );
   }
 
+  if (parsed.data.status === "paid" || parsed.data.status === "partially_paid") {
+    return fail(
+      "VALIDATION_ERROR",
+      "Paid status is set automatically when payments are recorded.",
+      400
+    );
+  }
+
   const items = normalizeLineItems(parsed.data.items);
-  const totals = calculateInvoiceTotals(items, parsed.data.taxRate);
+  const lineSubtotal = items.reduce((sum, item) => sum + item.amount, 0);
+
+  const taxConfig =
+    (await getActiveOrgTaxConfig(supabase, companyId)) ??
+    defaultTaxConfig(companyId);
+
+  const taxRate = parsed.data.taxRate ?? taxConfig.rate;
+  const totals = calculateTaxTotals(lineSubtotal, {
+    ...taxConfig,
+    rate: taxRate,
+  });
+
+  let invoiceNumber: string;
+  try {
+    invoiceNumber = await allocateNextInvoiceNumber(supabase, companyId);
+  } catch (err) {
+    return fail(
+      "INTERNAL_ERROR",
+      err instanceof Error ? err.message : "Failed to allocate invoice number",
+      500
+    );
+  }
+
   const shareToken = generateSecureShareToken();
 
   const { data: invoiceRow, error: invoiceError } = await supabase
@@ -85,10 +132,10 @@ export async function POST(request: Request) {
     .insert(
       invoiceInsertToRow({
         companyId,
-        invoiceNumber: parsed.data.invoiceNumber,
+        invoiceNumber,
         clientId: parsed.data.clientId,
         subtotal: totals.subtotal,
-        taxRate: parsed.data.taxRate,
+        taxRate: totals.taxRate,
         taxAmount: totals.taxAmount,
         total: totals.total,
         status: parsed.data.status,
@@ -99,9 +146,7 @@ export async function POST(request: Request) {
         notes: parsed.data.notes,
       })
     )
-    .select(
-      "id, company_id, invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, template_id, share_token, issue_date, due_date, notes, created_at, updated_at"
-    )
+    .select(INVOICE_SELECT)
     .single<InvoiceRow>();
 
   if (invoiceError) {
@@ -146,20 +191,27 @@ export async function POST(request: Request) {
     (historyRows ?? []) as InvoiceHistoryRow[]
   );
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name")
-    .eq("id", user.id)
-    .maybeSingle();
+  const actorName = await getActorName(
+    supabase,
+    user.id,
+    parsed.data.userName ?? "User"
+  );
 
-  await recordAuditLog(supabase, {
+  await auditMutation(supabase, {
     companyId,
     userId: user.id,
-    userName: profile?.name ?? parsed.data.userName ?? "User",
+    userName: actorName,
     action: "create",
     entity: "invoice",
     entityId: invoice.id,
     description: `Created invoice ${invoice.invoiceNumber}`,
+    metadata: {
+      after: {
+        total: invoice.total,
+        taxRate: invoice.taxRate,
+        status: invoice.status,
+      },
+    },
   });
 
   return ok(invoice, 201);

@@ -1,8 +1,41 @@
 import type { PayrollEntry, PayrollRun } from "@/types";
 import { apiGet, apiPatch, apiPost } from "@/lib/api/fetch";
 import { notifyDataChange } from "@/lib/data/events";
+import type { PaginatedResponse } from "@/lib/api/pagination";
+
+type ApiResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: { code: string; message: string } };
 
 let payrollCache: PayrollRun[] = [];
+
+async function parseApi<T>(res: Response): Promise<T> {
+  const json = (await res.json()) as ApiResult<T>;
+  if (!json.success) {
+    throw new Error(json.error?.message ?? "Request failed");
+  }
+  return json.data;
+}
+
+async function fetchAllPayrollRuns(): Promise<PayrollRun[]> {
+  const all: PayrollRun[] = [];
+  let cursor: string | null = null;
+
+  for (let page = 0; page < 20; page += 1) {
+    const params = new URLSearchParams({ limit: "50" });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/payroll?${params.toString()}`, {
+      credentials: "include",
+    });
+    if (!res.ok) break;
+    const pageData = await parseApi<PaginatedResponse<PayrollRun>>(res);
+    all.push(...pageData.items);
+    if (!pageData.hasMore || !pageData.nextCursor) break;
+    cursor = pageData.nextCursor;
+  }
+
+  return all;
+}
 
 function upsertCache(run: PayrollRun): void {
   const index = payrollCache.findIndex((r) => r.id === run.id);
@@ -15,7 +48,7 @@ function upsertCache(run: PayrollRun): void {
 
 export async function loadPayrollFromApi(): Promise<PayrollRun[]> {
   try {
-    payrollCache = await apiGet<PayrollRun[]>("/api/payroll");
+    payrollCache = await fetchAllPayrollRuns();
   } catch {
     payrollCache = [];
   }

@@ -22,4 +22,6 @@ export const PROTECTED_PREFIXES = [
   "/payroll",
   "/salary-slips",
   "/admin",
+  "/portal",
+  "/pending-approval",
 ];

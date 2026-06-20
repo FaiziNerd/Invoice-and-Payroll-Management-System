@@ -6,6 +6,7 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "VALIDATION_ERROR"
   | "CONFLICT"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export function ok<T>(data: T, status = 200) {
@@ -25,7 +26,9 @@ export function fail(code: ApiErrorCode, message: string, status?: number) {
             ? 400
             : code === "CONFLICT"
               ? 409
-              : 500);
+              : code === "RATE_LIMITED"
+                ? 429
+                : 500);
   return NextResponse.json(
     { success: false, error: { code, message } },
     { status: statusCode }

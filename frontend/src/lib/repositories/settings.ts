@@ -1,5 +1,4 @@
 import type { OrganizationSettings } from "@/types";
-import { addAuditLog } from "@/lib/audit";
 import { apiGet, apiPatch } from "@/lib/api/fetch";
 import { notifyDataChange } from "@/lib/data/events";
 
@@ -33,16 +32,6 @@ export async function updateSettings(
   const updated = await apiPatch<OrganizationSettings>("/api/settings", updates);
   settingsCache = updated;
   notifyDataChange("settings");
-
-  addAuditLog({
-    action: "update",
-    entity: "settings",
-    entityId: updated.id,
-    userId,
-    userName,
-    description: "Updated organization settings",
-    metadata: updates,
-  });
 
   return updated;
 }

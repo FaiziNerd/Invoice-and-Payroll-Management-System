@@ -1,4 +1,10 @@
-import type { Invoice, InvoiceHistoryEntry, InvoiceLineItem, InvoiceStatus } from "@/types";
+import type {
+  Invoice,
+  InvoiceHistoryEntry,
+  InvoiceLineItem,
+  InvoiceStatus,
+  PaymentVariance,
+} from "@/types";
 
 export interface InvoiceRow {
   id: string;
@@ -9,7 +15,11 @@ export interface InvoiceRow {
   tax_rate: number | string;
   tax_amount: number | string;
   total: number | string;
+  amount_paid: number | string;
+  payment_variance: PaymentVariance;
   status: InvoiceStatus;
+  void_reason: string | null;
+  voided_at: string | null;
   template_id: string;
   share_token: string;
   issue_date: string;
@@ -71,7 +81,11 @@ export function rowToInvoice(
     taxRate: Number(row.tax_rate),
     taxAmount: Number(row.tax_amount),
     total: Number(row.total),
+    amountPaid: Number(row.amount_paid ?? 0),
+    paymentVariance: (row.payment_variance ?? "none") as PaymentVariance,
     status: row.status,
+    voidReason: row.void_reason ?? undefined,
+    voidedAt: row.voided_at ?? undefined,
     templateId: row.template_id,
     shareToken: row.share_token,
     issueDate: row.issue_date,
@@ -114,3 +128,6 @@ export function invoiceInsertToRow(fields: {
     notes: fields.notes || null,
   };
 }
+
+export const INVOICE_SELECT =
+  "id, company_id, invoice_number, client_id, subtotal, tax_rate, tax_amount, total, amount_paid, payment_variance, status, void_reason, voided_at, template_id, share_token, issue_date, due_date, notes, created_at, updated_at";

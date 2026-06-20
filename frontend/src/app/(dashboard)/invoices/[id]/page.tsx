@@ -42,10 +42,11 @@ import {
 import {
   getInvoiceById,
   fetchInvoiceById,
-  updateInvoiceStatus,
   deleteInvoice,
   sendInvoiceEmail,
 } from "@/lib/repositories/invoices";
+import { fetchInvoicePayments, voidInvoice } from "@/lib/repositories/payments";
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog";
 import { fetchClientById } from "@/lib/repositories/clients";
 import { getTemplateById } from "@/lib/repositories/templates";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
@@ -56,7 +57,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { QRCodeSVG } from "qrcode.react";
-import type { Client } from "@/types";
+import type { Client, Payment } from "@/types";
 
 export default function InvoiceDetailPage({
   params,
@@ -69,6 +70,10 @@ export default function InvoiceDetailPage({
   const [emailMode, setEmailMode] = useState<EmailMode | null>(null);
   const [showQrDialog, setShowQrDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareUrl, setShareUrl] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
@@ -103,8 +108,8 @@ export default function InvoiceDetailPage({
 
   useEffect(() => {
     if (!invoice) return;
-    setShareUrl(`${window.location.origin}/share/invoice/${invoice.shareToken}`);
-  }, [invoice]);
+    void fetchInvoicePayments(invoice.id).then(setPayments);
+  }, [invoice?.id, refreshKey]);
 
   useEffect(() => {
     if (!showQrDialog) setLinkCopied(false);
@@ -176,14 +181,16 @@ export default function InvoiceDetailPage({
     }
   };
 
-  const handleMarkPaid = async () => {
-    if (!session) return;
+  const handleVoid = async () => {
+    if (!session || !voidReason.trim()) return;
     try {
-      await updateInvoiceStatus(invoice.id, "paid", session.userId, session.name);
-      toast.success("Invoice marked as paid");
+      await voidInvoice(invoice.id, voidReason.trim());
+      toast.success("Invoice voided");
+      setShowVoidDialog(false);
+      setVoidReason("");
       refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update invoice");
+      toast.error(err instanceof Error ? err.message : "Failed to void invoice");
     }
   };
 
@@ -209,7 +216,7 @@ export default function InvoiceDetailPage({
         />
         <PageHeader title={invoice.invoiceNumber} description={`Invoice for ${client.name}`}>
           <div className="flex flex-wrap gap-2">
-            {invoice.status !== "paid" && (
+            {invoice.status === "draft" && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/invoices/${invoice.id}/edit`}>
                   <Pencil className="h-4 w-4" /> Edit
@@ -227,7 +234,9 @@ export default function InvoiceDetailPage({
                 <Send className="h-4 w-4" /> Send
               </Button>
             )}
-            {(invoice.status === "sent" || invoice.status === "overdue") && (
+            {(invoice.status === "sent" ||
+              invoice.status === "overdue" ||
+              invoice.status === "partially_paid") && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setEmailMode("resend")}>
                   <RotateCw className="h-4 w-4" /> Resend
@@ -235,16 +244,37 @@ export default function InvoiceDetailPage({
                 <Button variant="outline" size="sm" onClick={() => setEmailMode("reminder")}>
                   <Bell className="h-4 w-4" /> Send Reminder
                 </Button>
-                <Button size="sm" onClick={handleMarkPaid}>
-                  <CheckCircle className="h-4 w-4" /> Mark Paid
+                <Button size="sm" onClick={() => setShowPaymentDialog(true)}>
+                  <CheckCircle className="h-4 w-4" /> Record Payment
                 </Button>
               </>
             )}
-            <Button variant="destructive" size="sm" aria-label="Delete invoice" onClick={() => setShowDeleteDialog(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {invoice.status === "draft" && (
+              <Button variant="destructive" size="sm" aria-label="Delete invoice" onClick={() => setShowDeleteDialog(true)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {invoice.status !== "draft" && invoice.status !== "void" && (
+              <Button variant="destructive" size="sm" onClick={() => setShowVoidDialog(true)}>
+                Void Invoice
+              </Button>
+            )}
           </div>
         </PageHeader>
+
+        {invoice.paymentVariance === "overpayment" && (
+          <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <AlertTriangle className="inline h-4 w-4 mr-2" />
+            Overpayment recorded: {formatCurrency(invoice.amountPaid)} received against{" "}
+            {formatCurrency(invoice.total)} total. Review before closing books.
+          </div>
+        )}
+
+        {invoice.status === "void" && invoice.voidReason && (
+          <div className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
+            Void reason: {invoice.voidReason}
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
@@ -301,7 +331,44 @@ export default function InvoiceDetailPage({
                 <div className="flex gap-8"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
                 <div className="flex gap-8"><span>Tax ({invoice.taxRate}%)</span><span>{formatCurrency(invoice.taxAmount)}</span></div>
                 <div className="flex gap-8 font-bold text-lg"><span>Total</span><span>{formatCurrency(invoice.total)}</span></div>
+                {invoice.amountPaid > 0 && (
+                  <>
+                    <div className="flex gap-8 text-green-700 dark:text-green-400">
+                      <span>Paid</span><span>{formatCurrency(invoice.amountPaid)}</span>
+                    </div>
+                    <div className="flex gap-8 font-medium">
+                      <span>Balance</span>
+                      <span>{formatCurrency(Math.max(0, invoice.total - invoice.amountPaid))}</span>
+                    </div>
+                  </>
+                )}
               </div>
+
+              {payments.length > 0 && (
+                <div className="space-y-2 pt-4 border-t">
+                  <p className="text-sm font-medium">Payment Records</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>{formatDate(p.paymentDate)}</TableCell>
+                          <TableCell className="capitalize">{p.method.replace("_", " ")}</TableCell>
+                          <TableCell>{p.referenceNumber || "—"}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(p.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
 
               {invoice.notes && (
                 <div>
@@ -398,7 +465,7 @@ export default function InvoiceDetailPage({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete Invoice</DialogTitle>
-              <DialogDescription>This action cannot be undone.</DialogDescription>
+              <DialogDescription>Draft invoices only. This action cannot be undone.</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
@@ -406,6 +473,38 @@ export default function InvoiceDetailPage({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Void Invoice</DialogTitle>
+              <DialogDescription>
+                Issued invoices cannot be deleted. Voiding preserves the invoice number for audit purposes.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              placeholder="Reason for voiding (required)"
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowVoidDialog(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleVoid} disabled={voidReason.trim().length < 3}>
+                Void Invoice
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <RecordPaymentDialog
+          invoice={invoice}
+          open={showPaymentDialog}
+          onOpenChange={setShowPaymentDialog}
+          onRecorded={() => {
+            toast.success("Payment recorded");
+            refresh();
+          }}
+        />
       </div>
     </RoleGate>
   );

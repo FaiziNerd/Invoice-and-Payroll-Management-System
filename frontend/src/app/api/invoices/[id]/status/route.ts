@@ -1,6 +1,7 @@
 import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { patchInvoiceStatusSchema } from "@/lib/api/invoices/schemas";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -28,7 +29,35 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     );
   }
 
+  const { data: existing, error: fetchError } = await supabase
+    .from("invoices")
+    .select("id, status, invoice_number, amount_paid")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (fetchError) return fail("INTERNAL_ERROR", fetchError.message, 500);
+  if (!existing) return fail("NOT_FOUND", "Invoice not found", 404);
+
+  if (existing.status === "void") {
+    return fail("VALIDATION_ERROR", "Void invoices cannot change status.", 400);
+  }
+
+  if (existing.status === "paid" || existing.status === "partially_paid") {
+    return fail(
+      "VALIDATION_ERROR",
+      "Payment status is managed via recorded payments, not manual status changes.",
+      400
+    );
+  }
+
   const timestamp = new Date().toISOString();
+  const actorName = await getActorName(
+    supabase,
+    user.id,
+    parsed.data.userName ?? "User"
+  );
+
   const { data: row, error } = await supabase
     .from("invoices")
     .update({
@@ -48,10 +77,24 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     action: `Status changed to ${parsed.data.status}`,
     timestamp,
     user_id: user.id,
-    user_name: parsed.data.userName || "User",
+    user_name: actorName,
   });
 
   if (historyError) return fail("INTERNAL_ERROR", historyError.message, 500);
+
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "status_change",
+    entity: "invoice",
+    entityId: id,
+    description: `Invoice ${existing.invoice_number} status changed to ${parsed.data.status}`,
+    metadata: {
+      before: { status: existing.status },
+      after: { status: parsed.data.status },
+    },
+  });
 
   return ok({ id: row.id, status: row.status });
 }

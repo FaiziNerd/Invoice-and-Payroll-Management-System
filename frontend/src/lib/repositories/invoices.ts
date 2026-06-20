@@ -1,6 +1,7 @@
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from "@/types";
 import { notifyDataChange } from "@/lib/data/events";
-import { addAuditLog } from "@/lib/repositories/audit";
+
+import type { PaginatedResponse } from "@/lib/api/pagination";
 
 type ApiResult<T> =
   | { success: true; data: T }
@@ -38,7 +39,7 @@ async function parseApi<T>(res: Response): Promise<T> {
   return json.data;
 }
 
-function upsertInvoice(invoice: Invoice): void {
+export function upsertInvoice(invoice: Invoice): void {
   const index = invoicesCache.findIndex((item) => item.id === invoice.id);
   if (index === -1) {
     invoicesCache = [invoice, ...invoicesCache];
@@ -50,12 +51,13 @@ function upsertInvoice(invoice: Invoice): void {
 }
 
 export async function loadInvoicesFromApi(): Promise<Invoice[]> {
-  const res = await fetch("/api/invoices", { credentials: "include" });
+  const res = await fetch("/api/invoices?limit=100", { credentials: "include" });
   if (!res.ok) {
     invoicesCache = [];
     return invoicesCache;
   }
-  invoicesCache = await parseApi<Invoice[]>(res);
+  const page = await parseApi<PaginatedResponse<Invoice>>(res);
+  invoicesCache = page.items;
   notifyDataChange("invoices");
   return invoicesCache;
 }
@@ -125,6 +127,8 @@ export async function getInvoiceByToken(token: string): Promise<Invoice | undefi
     taxRate: Number(invoice.tax_rate ?? 0),
     taxAmount: Number(invoice.tax_amount ?? 0),
     total: Number(invoice.total ?? 0),
+    amountPaid: 0,
+    paymentVariance: "none",
     status: invoice.status as InvoiceStatus,
     templateId: "",
     shareToken: token,
@@ -148,6 +152,7 @@ export async function createInvoice(
   data: Omit<
     Invoice,
     | "id"
+    | "invoiceNumber"
     | "shareToken"
     | "history"
     | "createdAt"
@@ -155,7 +160,9 @@ export async function createInvoice(
     | "subtotal"
     | "taxAmount"
     | "total"
-  > & { items: InvoiceLineItem[] },
+    | "amountPaid"
+    | "paymentVariance"
+  > & { items: InvoiceLineItem[]; invoiceNumber?: string },
   userId: string,
   userName: string
 ): Promise<Invoice> {
@@ -173,15 +180,6 @@ export async function createInvoice(
   const invoice = await parseApi<Invoice>(res);
   upsertInvoice(invoice);
   notifyDataChange("invoices");
-
-  void addAuditLog({
-    action: "create",
-    entity: "invoice",
-    entityId: invoice.id,
-    userId,
-    userName,
-    description: `Created invoice ${invoice.invoiceNumber}`,
-  });
 
   return invoice;
 }
@@ -210,15 +208,6 @@ export async function updateInvoice(
   upsertInvoice(invoice);
   notifyDataChange("invoices");
 
-  void addAuditLog({
-    action: "update",
-    entity: "invoice",
-    entityId: id,
-    userId,
-    userName,
-    description: historyAction || `Updated invoice ${invoice.invoiceNumber}`,
-  });
-
   return invoice;
 }
 
@@ -244,15 +233,6 @@ export async function updateInvoiceStatus(
   upsertInvoice(invoice);
   notifyDataChange("invoices");
 
-  void addAuditLog({
-    action: "status_change",
-    entity: "invoice",
-    entityId: id,
-    userId,
-    userName,
-    description: `Status changed to ${status}`,
-  });
-
   return invoice;
 }
 
@@ -273,15 +253,6 @@ export async function deleteInvoice(
   invoicesCache = invoicesCache.filter((item) => item.id !== id);
   notifyDataChange("invoices");
 
-  void addAuditLog({
-    action: "delete",
-    entity: "invoice",
-    entityId: id,
-    userId,
-    userName,
-    description: `Deleted invoice ${invoice?.invoiceNumber ?? id}`,
-  });
-
   return true;
 }
 
@@ -293,6 +264,15 @@ export function getNextInvoiceNumber(): string {
     return Number.isFinite(parsed) ? Math.max(acc, parsed) : acc;
   }, 0);
   return `INV-${String(max + 1).padStart(4, "0")}`;
+}
+
+export async function fetchNextInvoiceNumber(): Promise<string> {
+  const res = await fetch("/api/invoices/next-number", { credentials: "include" });
+  if (!res.ok) {
+    return getNextInvoiceNumber();
+  }
+  const data = await parseApi<{ invoiceNumber: string }>(res);
+  return data.invoiceNumber;
 }
 
 export async function sendInvoiceEmail(

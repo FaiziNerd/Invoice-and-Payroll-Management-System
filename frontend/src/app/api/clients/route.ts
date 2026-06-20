@@ -3,25 +3,43 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { createClientSchema } from "@/lib/api/clients/schemas";
 import { clientFieldsToRow, rowToClient } from "@/lib/api/clients/mappers";
 import { recordAuditLog } from "@/lib/server/record-audit-log";
+import {
+  applyCursorFilter,
+  applySoftDeleteFilter,
+  buildPaginatedResponse,
+  parseListParams,
+} from "@/lib/api/pagination";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
+const CLIENT_SELECT = "id, company_id, name, email, phone, address, created_at, deleted_at";
 
-export async function GET() {
+export async function GET(request: Request) {
   const result = await requireCompanyContext();
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
 
-  const { data, error } = await supabase
+  const url = new URL(request.url);
+  const { limit, cursor, includeDeleted, trashOnly } = parseListParams(url);
+
+  let query = supabase
     .from("clients")
-    .select("id, company_id, name, email, phone, address, created_at")
+    .select(CLIENT_SELECT)
     .eq("company_id", companyId)
-    .order("name", { ascending: true });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  query = applySoftDeleteFilter(query, { includeDeleted, trashOnly });
+  query = applyCursorFilter(query, cursor);
+
+  const { data, error } = await query;
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
-  return ok((data ?? []).map(rowToClient));
+  const mapped = (data ?? []).map(rowToClient);
+  return ok(buildPaginatedResponse(mapped, limit));
 }
 
 export async function POST(request: Request) {
@@ -51,7 +69,7 @@ export async function POST(request: Request) {
       company_id: companyId,
       ...clientFieldsToRow(parsed.data),
     })
-    .select("id, company_id, name, email, phone, address, created_at")
+    .select(CLIENT_SELECT)
     .single();
 
   if (error) {

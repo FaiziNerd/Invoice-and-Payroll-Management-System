@@ -1,6 +1,6 @@
 import type { Client } from "@/types";
-import { addAuditLog } from "@/lib/repositories/audit";
 import { notifyDataChange } from "@/lib/data/events";
+import type { PaginatedResponse } from "@/lib/api/pagination";
 
 type ApiResult<T> =
   | { success: true; data: T }
@@ -14,6 +14,26 @@ async function parseApi<T>(res: Response): Promise<T> {
     throw new Error(json.error?.message ?? "Request failed");
   }
   return json.data;
+}
+
+async function fetchAllActiveClients(): Promise<Client[]> {
+  const all: Client[] = [];
+  let cursor: string | null = null;
+
+  for (let page = 0; page < 20; page += 1) {
+    const params = new URLSearchParams({ limit: "100" });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/clients?${params.toString()}`, {
+      credentials: "include",
+    });
+    if (!res.ok) break;
+    const pageData = await parseApi<PaginatedResponse<Client>>(res);
+    all.push(...pageData.items);
+    if (!pageData.hasMore || !pageData.nextCursor) break;
+    cursor = pageData.nextCursor;
+  }
+
+  return all.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function upsertCache(client: Client) {
@@ -32,12 +52,12 @@ function removeFromCache(id: string) {
 }
 
 export async function loadClientsFromApi(): Promise<Client[]> {
-  const res = await fetch("/api/clients", { credentials: "include" });
-  if (!res.ok) {
+  try {
+    clientsCache = await fetchAllActiveClients();
+    notifyDataChange("clients");
+  } catch {
     clientsCache = [];
-    return clientsCache;
   }
-  clientsCache = await parseApi<Client[]>(res);
   return clientsCache;
 }
 
@@ -61,15 +81,8 @@ export async function fetchClientById(id: string): Promise<Client | undefined> {
   return client;
 }
 
-/** @deprecated Public share still uses mock invoices; resolves from cache only */
-export function findClientById(id: string): Client | undefined {
-  return getClientById(id);
-}
-
 export async function createClient(
-  data: Omit<Client, "id" | "createdAt">,
-  userId: string,
-  userName: string
+  data: Omit<Client, "id" | "createdAt">
 ): Promise<Client> {
   const res = await fetch("/api/clients", {
     method: "POST",
@@ -77,76 +90,47 @@ export async function createClient(
     credentials: "include",
     body: JSON.stringify(data),
   });
-
   const client = await parseApi<Client>(res);
   upsertCache(client);
   notifyDataChange("clients");
-  void addAuditLog({
-    action: "create",
-    entity: "client",
-    entityId: client.id,
-    userId,
-    userName,
-    description: `Created client ${client.name}`,
-  });
   return client;
 }
 
 export async function updateClient(
   id: string,
-  data: Partial<Omit<Client, "id" | "createdAt">>,
-  userId: string,
-  userName: string
-): Promise<Client | null> {
+  data: Partial<Omit<Client, "id" | "createdAt">>
+): Promise<Client> {
   const res = await fetch(`/api/clients/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(data),
   });
-
-  if (res.status === 404) return null;
-
   const client = await parseApi<Client>(res);
   upsertCache(client);
   notifyDataChange("clients");
-  void addAuditLog({
-    action: "update",
-    entity: "client",
-    entityId: id,
-    userId,
-    userName,
-    description: `Updated client ${client.name}`,
-  });
   return client;
 }
 
-export async function deleteClient(
-  id: string,
-  userId: string,
-  userName: string
-): Promise<boolean> {
-  const client = getClientById(id);
-
+export async function deleteClient(id: string): Promise<void> {
   const res = await fetch(`/api/clients/${id}`, {
     method: "DELETE",
     credentials: "include",
   });
-
-  const json = (await res.json()) as ApiResult<{ deleted: true }>;
-  if (!json.success) {
-    throw new Error(json.error?.message ?? "Failed to delete client");
-  }
-
+  await parseApi<{ deleted: boolean }>(res);
   removeFromCache(id);
   notifyDataChange("clients");
-  void addAuditLog({
-    action: "delete",
-    entity: "client",
-    entityId: id,
-    userId,
-    userName,
-    description: `Deleted client ${client?.name ?? id}`,
+}
+
+export async function restoreClient(id: string): Promise<Client> {
+  const res = await fetch(`/api/clients/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ restore: true }),
   });
-  return true;
+  const client = await parseApi<Client>(res);
+  upsertCache(client);
+  notifyDataChange("clients");
+  return client;
 }

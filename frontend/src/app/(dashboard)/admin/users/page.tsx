@@ -56,17 +56,33 @@ const emptyForm: UserForm = { name: "", email: "", role: "accountant", password:
 
 function InviteCodesCard() {
   const [invites, setInvites] = useState<
-    Array<{ id: string; token: string; role: string; expires_at: string }>
+    Array<{
+      id: string;
+      token: string;
+      email: string;
+      role: string;
+      expires_at: string;
+    }>
+  >([]);
+  const [pending, setPending] = useState<
+    Array<{ id: string; userId: string; name: string; email: string; role: string; createdAt: string }>
   >([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"accountant" | "hr">("accountant");
 
   const loadInvites = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/invites", { credentials: "include" });
-      const json = await res.json();
-      if (json.success) setInvites(json.data ?? []);
+      const [invitesRes, pendingRes] = await Promise.all([
+        fetch("/api/invites", { credentials: "include" }),
+        fetch("/api/admin/pending-members", { credentials: "include" }),
+      ]);
+      const invitesJson = await invitesRes.json();
+      const pendingJson = await pendingRes.json();
+      if (invitesJson.success) setInvites(invitesJson.data ?? []);
+      if (pendingJson.success) setPending(pendingJson.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -77,23 +93,76 @@ function InviteCodesCard() {
   }, []);
 
   const handleGenerate = async () => {
+    if (!inviteEmail.trim()) {
+      toast.error("Email is required for invites");
+      return;
+    }
     setGenerating(true);
     try {
       const res = await fetch("/api/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ role: "accountant", expiresInDays: 7 }),
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          role: inviteRole,
+          expiresInDays: 7,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Failed");
-      toast.success("Invite code generated");
+      toast.success("Invite generated");
+      setInviteEmail("");
       await loadInvites();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to generate invite");
     } finally {
       setGenerating(false);
     }
+  };
+
+  const revokeInvite = async (id: string) => {
+    const res = await fetch(`/api/invites?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const json = await res.json();
+    if (!json.success) {
+      toast.error(json.error?.message ?? "Failed to revoke invite");
+      return;
+    }
+    toast.success("Invite revoked");
+    await loadInvites();
+  };
+
+  const approvePending = async (userId: string) => {
+    const res = await fetch("/api/admin/pending-members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId }),
+    });
+    const json = await res.json();
+    if (!json.success) {
+      toast.error(json.error?.message ?? "Failed to approve");
+      return;
+    }
+    toast.success("Member approved");
+    await loadInvites();
+  };
+
+  const rejectPending = async (userId: string) => {
+    const res = await fetch(`/api/admin/pending-members?userId=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const json = await res.json();
+    if (!json.success) {
+      toast.error(json.error?.message ?? "Failed to reject");
+      return;
+    }
+    toast.success("Pending request rejected");
+    await loadInvites();
   };
 
   const copyInvite = async (token: string) => {
@@ -108,42 +177,93 @@ function InviteCodesCard() {
 
   return (
     <Card>
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex items-center justify-between gap-4">
+      <CardContent className="pt-6 space-y-6">
+        <div className="space-y-4">
           <div>
-            <h3 className="font-medium">Invite codes</h3>
+            <h3 className="font-medium">Email-specific invites</h3>
             <p className="text-sm text-muted-foreground">
-              Single-use codes for new team members. Share the link — slug-based joining is disabled.
+              Invites are tied to one email address and expire after 7 days.
             </p>
           </div>
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? "Generating..." : "Generate invite"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              type="email"
+              placeholder="team.member@company.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="max-w-xs"
+            />
+            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as "accountant" | "hr")}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="accountant">Accountant</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? "Generating..." : "Generate invite"}
+            </Button>
+          </div>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading invites...</p>
+          ) : invites.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active invite codes.</p>
+          ) : (
+            <div className="space-y-2">
+              {invites.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{inv.email}</p>
+                    <p className="font-mono text-xs break-all">{inv.token}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {inv.role} · expires {new Date(inv.expires_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => copyInvite(inv.token)}>
+                      Copy link
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => void revokeInvite(inv.id)}>
+                      Revoke
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading invites...</p>
-        ) : invites.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active invite codes.</p>
-        ) : (
-          <div className="space-y-2">
-            {invites.map((inv) => (
+
+        <div className="space-y-3 border-t pt-6">
+          <h3 className="font-medium">Pending approval requests</h3>
+          {pending.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending self-join requests.</p>
+          ) : (
+            pending.map((member) => (
               <div
-                key={inv.id}
+                key={member.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
               >
                 <div>
-                  <p className="font-mono text-xs break-all">{inv.token}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {inv.role} · expires {new Date(inv.expires_at).toLocaleDateString()}
-                  </p>
+                  <p className="font-medium">{member.name}</p>
+                  <p className="text-sm text-muted-foreground">{member.email}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => copyInvite(inv.token)}>
-                  Copy link
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void approvePending(member.userId)}>
+                    Approve
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void rejectPending(member.userId)}>
+                    Reject
+                  </Button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </CardContent>
     </Card>
   );

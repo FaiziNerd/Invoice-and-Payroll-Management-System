@@ -7,7 +7,7 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { QuickDraftGenerator } from "@/components/invoices/quick-draft-generator";
-import { createInvoice, getNextInvoiceNumber } from "@/lib/repositories/invoices";
+import { createInvoice } from "@/lib/repositories/invoices";
 import { getDefaultTemplate } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -32,7 +32,6 @@ export default function NewInvoicePage() {
     try {
       const invoice = await createInvoice(
         {
-          invoiceNumber: getNextInvoiceNumber(),
           clientId: values.clientId,
           items: values.items,
           taxRate: values.taxRate,

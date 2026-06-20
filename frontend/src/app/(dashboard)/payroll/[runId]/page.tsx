@@ -32,7 +32,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { exportToCSV } from "@/lib/csv";
-import { addAuditLog } from "@/lib/audit";
+import { recordExportAudit } from "@/lib/audit";
 import type { PayrollRun } from "@/types";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -116,14 +116,11 @@ export default function PayrollDetailPage({
       { key: "netPay", label: "Net Pay" },
     ], `payroll-${run.month}-${run.year}.csv`);
     if (session) {
-      addAuditLog({
-        action: "export",
-        entity: "payroll",
-        entityId: runId,
-        userId: session.userId,
-        userName: session.name,
-        description: `Exported payroll for ${run.month}/${run.year}`,
-      });
+      void recordExportAudit(
+        "payroll",
+        `Exported payroll for ${run.month}/${run.year}`,
+        runId
+      );
     }
     toast.success("CSV exported");
   };

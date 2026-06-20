@@ -32,10 +32,33 @@ function getApiKey(): string {
   return apiKey;
 }
 
+export type InvoiceEmailAttachment = {
+  filename: string;
+  content: Buffer;
+};
+
 export async function deliverInvoiceEmail(
-  input: InvoiceEmailInput
+  input: InvoiceEmailInput,
+  attachment?: InvoiceEmailAttachment
 ): Promise<{ id: string }> {
   const content = buildInvoiceEmailContent(input);
+
+  const payload: Record<string, unknown> = {
+    from: getFromAddress(),
+    to: [content.to],
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+  };
+
+  if (attachment) {
+    payload.attachments = [
+      {
+        filename: attachment.filename,
+        content: attachment.content.toString("base64"),
+      },
+    ];
+  }
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -43,26 +66,20 @@ export async function deliverInvoiceEmail(
       Authorization: `Bearer ${getApiKey()}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: getFromAddress(),
-      to: [content.to],
-      subject: content.subject,
-      text: content.text,
-      html: content.html,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const payload = (await response.json()) as { id?: string; message?: string };
+  const result = (await response.json()) as { id?: string; message?: string };
 
   if (!response.ok) {
-    throw new EmailDeliveryError(payload.message ?? `Resend HTTP ${response.status}`);
+    throw new EmailDeliveryError(result.message ?? `Resend HTTP ${response.status}`);
   }
 
-  if (!payload.id) {
+  if (!result.id) {
     throw new EmailDeliveryError("Email provider returned no message id");
   }
 
-  return { id: payload.id };
+  return { id: result.id };
 }
 
 export type { EmailMode };

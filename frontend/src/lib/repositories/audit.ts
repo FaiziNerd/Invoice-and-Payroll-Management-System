@@ -46,9 +46,16 @@ export function getAuditLogs(): AuditLog[] {
   return auditLogsCache;
 }
 
-/** @deprecated Audit entries are recorded server-side only. This is a no-op. */
-export async function addAuditLog(
-  _log: Omit<AuditLog, "id" | "timestamp">
+/** Server-side export audit helper for client-initiated CSV/PDF exports. */
+export async function recordExportAudit(
+  entity: string,
+  description: string,
+  entityId?: string
 ): Promise<void> {
-  // Intentionally empty — see lib/server/record-audit-log.ts
+  await fetch("/api/audit/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ entity, description, entityId }),
+  });
 }

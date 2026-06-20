@@ -8,6 +8,7 @@ export interface ClientRow {
   phone: string | null;
   address: string | null;
   created_at: string;
+  deleted_at?: string | null;
 }
 
 export function rowToClient(row: ClientRow): Client {
@@ -18,6 +19,7 @@ export function rowToClient(row: ClientRow): Client {
     phone: row.phone ?? "",
     address: row.address ?? "",
     createdAt: row.created_at,
+    deletedAt: row.deleted_at ?? undefined,
   };
 }
 

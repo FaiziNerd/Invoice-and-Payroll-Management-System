@@ -1,4 +1,6 @@
-export type UserRole = "admin" | "accountant" | "hr";
+export type UserRole = "admin" | "accountant" | "hr" | "employee";
+
+export type MemberStatus = "active" | "pending";
 
 export interface Company {
   id: string;
@@ -22,9 +24,34 @@ export interface Session {
   role: UserRole;
   name: string;
   companyId: string;
+  memberStatus: MemberStatus;
+  employeeId?: string;
 }
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
+export type InvoiceStatus =
+  | "draft"
+  | "sent"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "void";
+
+export type PaymentMethod = "bank_transfer" | "cash" | "gateway";
+
+export type PaymentVariance = "none" | "overpayment";
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  method: PaymentMethod;
+  referenceNumber?: string;
+  paymentDate: string;
+  recordedBy: string;
+  recordedByName?: string;
+  proofUrl?: string;
+  createdAt: string;
+}
 
 export interface Client {
   id: string;
@@ -33,6 +60,7 @@ export interface Client {
   phone: string;
   address: string;
   createdAt: string;
+  deletedAt?: string;
 }
 
 export interface InvoiceLineItem {
@@ -52,7 +80,11 @@ export interface Invoice {
   taxRate: number;
   taxAmount: number;
   total: number;
+  amountPaid: number;
+  paymentVariance: PaymentVariance;
   status: InvoiceStatus;
+  voidReason?: string;
+  voidedAt?: string;
   templateId: string;
   shareToken: string;
   issueDate: string;
@@ -80,6 +112,7 @@ export interface InvoiceTemplate {
   branding: TemplateBranding;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface TemplateBranding {
@@ -139,6 +172,8 @@ export interface Employee {
   status: EmployeeStatus;
   salaryStructure: SalaryStructure;
   createdAt: string;
+  deletedAt?: string;
+  userId?: string;
 }
 
 export type PayrollStatus = "draft" | "processed" | "paid";
@@ -194,7 +229,18 @@ export type AuditAction =
   | "send"
   | "process"
   | "export"
-  | "status_change";
+  | "status_change"
+  | "void"
+  | "payment";
+
+export interface OrgTaxConfig {
+  id?: string;
+  name: string;
+  rate: number;
+  isInclusive: boolean;
+  isActive: boolean;
+  updatedAt?: string;
+}
 
 export interface AuditLog {
   id: string;

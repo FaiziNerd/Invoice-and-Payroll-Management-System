@@ -49,6 +49,7 @@ export const updateEmployeeSchema = z
     joinDate: employeeFieldsSchema.shape.joinDate.optional(),
     status: employeeFieldsSchema.shape.status.optional(),
     salaryStructure: updateSalaryStructureSchema.optional(),
+    restore: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
