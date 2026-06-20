@@ -5,7 +5,18 @@ import { addAuditLog } from "@/lib/audit";
 
 const KEY = "invoices";
 
+function sendDiagLog(type: string, message: string) {
+  if (typeof window !== "undefined") {
+    fetch("http://localhost:3001/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, message }),
+    }).catch(() => {});
+  }
+}
+
 export function getInvoices(): Invoice[] {
+  sendDiagLog("db", "getInvoices called");
   const invoices = getFromStorage<Invoice[]>(KEY, []);
   return resolveOverdueStatuses(invoices);
 }
@@ -51,7 +62,10 @@ function resolveOverdueStatuses(invoices: Invoice[], companyId?: string): Invoic
 
     return invoice;
   });
-  if (changed) setInStorage(KEY, updated, companyId);
+  if (changed) {
+    sendDiagLog("db", "resolveOverdueStatuses writing to storage");
+    setInStorage(KEY, updated, companyId);
+  }
   return updated;
 }
 
