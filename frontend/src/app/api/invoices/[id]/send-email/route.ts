@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (!parsed.success) {
     return fail(
       "VALIDATION_ERROR",
-      parsed.error.errors[0]?.message ?? "Invalid input",
+      parsed.error.issues[0]?.message ?? "Invalid input",
       400
     );
   }

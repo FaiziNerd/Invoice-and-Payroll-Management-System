@@ -46,6 +46,21 @@ create table public.company_members (
 
 alter table public.company_members enable row level security;
 
+-- Single-use signup invite tokens (used by /api/invites and join signup flow)
+create table public.company_invites (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references public.companies(id) on delete cascade,
+  token text not null unique,
+  role text not null check (role in ('admin', 'accountant', 'hr')) default 'accountant',
+  created_by uuid not null references auth.users(id) on delete cascade,
+  used_by uuid references auth.users(id) on delete set null,
+  used_at timestamp with time zone,
+  expires_at timestamp with time zone not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.company_invites enable row level security;
+
 -- ---------------------------------------------------------------------------
 -- ORGANIZATION SETTINGS (one row per company)
 -- ---------------------------------------------------------------------------
@@ -516,10 +531,27 @@ create policy "Company admins manage membership"
   using (public.user_company_role(company_id) = 'admin')
   with check (public.user_company_role(company_id) = 'admin');
 
+-- COMPANY INVITES
+create policy "Admins read company invites"
+  on public.company_invites for select to authenticated
+  using (public.user_company_role(company_id) = 'admin');
+
+create policy "Admins create company invites"
+  on public.company_invites for insert to authenticated
+  with check (public.user_company_role(company_id) = 'admin');
+
+create policy "Admins delete company invites"
+  on public.company_invites for delete to authenticated
+  using (public.user_company_role(company_id) = 'admin');
+
 -- ORGANIZATION SETTINGS
 create policy "Members read company settings"
   on public.organization_settings for select to authenticated
   using (public.user_has_company(company_id));
+
+create policy "Admins and accountants insert settings"
+  on public.organization_settings for insert to authenticated
+  with check (public.user_company_role(company_id) in ('admin', 'accountant'));
 
 create policy "Admins and accountants update settings"
   on public.organization_settings for update to authenticated
@@ -657,3 +689,20 @@ create policy "Company admins read audit logs"
 create policy "Members append audit logs"
   on public.audit_logs for insert to authenticated
   with check (public.user_has_company(company_id));
+
+-- ---------------------------------------------------------------------------
+-- INDEXES (RLS and common query paths)
+-- ---------------------------------------------------------------------------
+create index company_members_user_id_idx on public.company_members (user_id);
+create index company_invites_token_idx on public.company_invites (token);
+create index company_invites_company_id_idx on public.company_invites (company_id);
+create index clients_company_id_idx on public.clients (company_id);
+create index invoices_company_id_idx on public.invoices (company_id);
+create index invoice_items_invoice_id_idx on public.invoice_items (invoice_id);
+create index invoice_history_invoice_id_idx on public.invoice_history (invoice_id);
+create index departments_company_id_idx on public.departments (company_id);
+create index employees_company_id_idx on public.employees (company_id);
+create index payroll_runs_company_id_idx on public.payroll_runs (company_id);
+create index payroll_entries_payroll_run_id_idx on public.payroll_entries (payroll_run_id);
+create index salary_slips_company_id_idx on public.salary_slips (company_id);
+create index audit_logs_company_id_idx on public.audit_logs (company_id);

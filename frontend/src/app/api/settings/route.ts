@@ -34,22 +34,12 @@ export async function GET() {
     return ok(rowToSettings(data));
   }
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("organization_settings")
-    .insert({
-      company_id: companyId,
-      name: "My Company",
-      address: null,
-      default_template_id: null,
-    })
-    .select("company_id, name, address, default_template_id, updated_at")
-    .single();
-
-  if (insertError) {
-    return fail("INTERNAL_ERROR", insertError.message, 500);
-  }
-
-  return ok(rowToSettings(inserted));
+  return ok({
+    id: companyId,
+    name: "My Company",
+    address: "",
+    defaultTemplateId: "",
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -68,7 +58,7 @@ export async function PATCH(request: Request) {
   if (!parsed.success) {
     return fail(
       "VALIDATION_ERROR",
-      parsed.error.errors[0]?.message ?? "Invalid input",
+      parsed.error.issues[0]?.message ?? "Invalid input",
       400
     );
   }

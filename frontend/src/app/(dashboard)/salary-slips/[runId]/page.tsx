@@ -12,6 +12,8 @@ import { getPayrollRunById } from "@/lib/repositories/payroll";
 import { getSlipsByRunId, generateSlipsForRun } from "@/lib/repositories/salary-slips";
 import { getEmployeeById } from "@/lib/repositories/employees";
 import { formatCurrency } from "@/lib/utils";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -27,9 +29,14 @@ export default function SalarySlipsRunPage({
 }) {
   const { runId } = use(params);
   const { session } = useAuth();
+  const dataReady = useCompanyDataReady();
   const run = getPayrollRunById(runId);
   const [slips, setSlips] = useState<SalarySlip[]>(() => getSlipsByRunId(runId));
   const [downloading, setDownloading] = useState(false);
+
+  if (!dataReady) {
+    return <RoleGate roles={["admin", "hr"]}><CardGridSkeleton count={2} /></RoleGate>;
+  }
 
   if (!run) {
     return (
@@ -67,9 +74,13 @@ export default function SalarySlipsRunPage({
 
   const handleGenerate = async () => {
     if (!session) return;
-    const generated = await generateSlipsForRun(run, session.userId, session.name);
-    setSlips(generated);
-    toast.success(`Generated ${generated.length} salary slips`);
+    try {
+      const generated = await generateSlipsForRun(run, session.userId, session.name);
+      setSlips(generated);
+      toast.success(`Generated ${generated.length} salary slips`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate salary slips");
+    }
   };
 
   const handleDownload = async (slip: SalarySlip) => {

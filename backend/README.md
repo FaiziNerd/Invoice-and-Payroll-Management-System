@@ -1,38 +1,34 @@
 # IPMS Backend
 
-Server-side code for the Smart Invoice & Payroll Management Platform: Supabase schema, API logic, validation, and business rules.
+Shared server-side utilities for the Smart Invoice & Payroll Management Platform: Supabase clients, API response helpers, and environment validation.
 
-The Next.js UI lives in [`../frontend`](../frontend).
+The Next.js UI and **live API routes** live in [`../frontend`](../frontend). All HTTP endpoints are implemented under `frontend/src/app/api/`.
+
+The Supabase SQL schema lives at [`../supabase`](../supabase) (not inside this folder).
 
 ## Structure
 
 ```
 backend/
-  supabase/           # SQL schema & future migrations
   src/
     config/           # Environment validation
     lib/
       api/            # Standard API response helpers
       supabase/       # Supabase clients (admin + anon)
-    routes/           # HTTP route handlers (added as we build)
-    services/         # Business logic (invoice totals, payroll math, etc.)
-    modules/          # Per-domain code (auth, invoices, payroll, …)
     types/            # Shared TypeScript types for API contracts
-    index.ts          # Entry point
+    index.ts          # Re-exports (library entry point)
 ```
 
 ## Frontend vs backend — what goes where
 
-| Goes in **backend** | Stays in **frontend** |
-|---------------------|------------------------|
-| Supabase schema & migrations | Pages, layouts, UI components |
-| Service-role Supabase access | Browser Supabase client (`@supabase/ssr`) |
-| Money math (invoice totals, payroll gross/net) | Display formatting, charts, PDF layout |
+| Goes in **backend** (shared lib) | Implemented in **frontend** |
+|----------------------------------|-----------------------------|
+| Supabase client factories | Pages, layouts, UI components |
+| Service-role Supabase access patterns | Browser Supabase client (`@supabase/ssr`) |
+| Standard API response helpers | Next.js route handlers (`src/app/api/`) |
 | Zod validation for API inputs | Form UX, client-side hints |
 | RLS-aware data access patterns | `middleware.ts` (Next.js cookie session refresh) |
-| Public share lookup by token (server) | Public invoice **view** component |
 | Audit log writes to DB | Toast notifications, loading states |
-| REST/route handler implementations | `mock-db/` until wired to API |
 
 **Note:** Next.js `middleware.ts` and cookie-based Supabase SSR client stay in `frontend/` because they depend on Next.js APIs (`cookies()`, edge runtime). They call the same Supabase project configured here.
 
@@ -43,13 +39,14 @@ cd backend
 cp .env.example .env
 # Fill in Supabase credentials (same project as frontend)
 npm install
-npm run dev
+npm run typecheck
 ```
 
 Apply schema in Supabase SQL editor or CLI:
 
 ```bash
-# File: supabase/schema.sql
+# File: ../supabase/schema.sql
+# For existing databases, also run incremental migrations in ../supabase/
 ```
 
 ## API contract
@@ -66,4 +63,4 @@ or
 { "success": false, "error": { "message": "...", "code": "..." } }
 ```
 
-Use helpers in `src/lib/api/response.ts` and `src/lib/api/errors.ts`.
+Use helpers in `src/lib/api/response.ts` and `src/lib/api/errors.ts`. The frontend duplicates these helpers at `frontend/src/lib/api/response.ts` for Next.js route handlers.

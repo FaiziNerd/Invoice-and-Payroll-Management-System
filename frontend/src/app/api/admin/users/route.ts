@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.errors[0]?.message ?? "Invalid input", 400);
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Invalid input", 400);
   }
 
   const input = parsed.data;
@@ -153,7 +153,7 @@ export async function PATCH(request: Request) {
 
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.errors[0]?.message ?? "Invalid input", 400);
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Invalid input", 400);
   }
 
   const { id, name, email, role, password } = parsed.data;

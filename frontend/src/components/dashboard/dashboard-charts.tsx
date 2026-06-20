@@ -31,7 +31,7 @@ export function RevenueChart({ data }: { data: { month: string; revenue: number 
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
         <YAxis className="text-xs" />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
         <Bar dataKey="revenue" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -50,7 +50,7 @@ export function InvoiceAnalyticsChart({ data }: { data: { name: string; value: n
           innerRadius={60}
           outerRadius={90}
           dataKey="value"
-          label={({ name, value }) => `${name}: ${value}`}
+          label={({ name, value }: { name: string; value: number }) => `${name}: ${value}`}
         >
           {activeData.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -69,7 +69,7 @@ export function InvoiceAgingChart({ data }: { data: { label: string; count: numb
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="label" className="text-xs" angle={-35} textAnchor="end" height={50} />
         <YAxis className="text-xs" />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
         <Bar dataKey="amount" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -83,7 +83,7 @@ export function PayrollTrendChart({ data }: { data: { month: string; expense: nu
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
         <YAxis className="text-xs" />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
         <Line type="monotone" dataKey="expense" stroke="var(--chart-5)" strokeWidth={2} />
       </LineChart>
     </ResponsiveContainer>
@@ -101,13 +101,13 @@ export function DeptPayrollChart({ data }: { data: { name: string; value: number
           innerRadius={60}
           outerRadius={90}
           dataKey="value"
-          label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
+          label={({ name, value }: { name: string; value: number }) => `${name}: ${formatCurrency(value)}`}
         >
           {data.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -120,7 +120,7 @@ export function NetMarginTrendChart({ data }: { data: { month: string; margin: n
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
         <YAxis className="text-xs" />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip formatter={(v) => formatCurrency(Number(v))} />
         <Line type="monotone" dataKey="margin" stroke="var(--chart-2)" strokeWidth={2} />
       </LineChart>
     </ResponsiveContainer>

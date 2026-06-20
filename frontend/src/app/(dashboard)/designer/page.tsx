@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Copy, Trash2, Star, Eye } from "lucide-react";
@@ -15,6 +14,7 @@ import {
   deleteTemplate,
   updateTemplate,
 } from "@/lib/repositories/templates";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -22,15 +22,12 @@ import { RoleGate } from "@/components/auth/role-gate";
 export default function DesignerPage() {
   const router = useRouter();
   const { session } = useAuth();
-  const [templates, setTemplates] = useState(() => getTemplates());
-
-  const refresh = () => setTemplates(getTemplates());
+  const templates = useStorageData(() => getTemplates(), ["templates"]);
 
   const handleDuplicate = async (id: string) => {
     if (!session) return;
     await duplicateTemplate(id, session.userId, session.name);
     toast.success("Template duplicated");
-    refresh();
   };
 
   const handleDelete = async (id: string) => {
@@ -38,7 +35,6 @@ export default function DesignerPage() {
     try {
       await deleteTemplate(id, session.userId, session.name);
       toast.success("Template deleted");
-      refresh();
     } catch {
       toast.error("Cannot delete default template");
     }
@@ -48,7 +44,6 @@ export default function DesignerPage() {
     if (!session) return;
     await updateTemplate(id, { isDefault: true }, session.userId, session.name);
     toast.success("Default template updated");
-    refresh();
   };
 
   const handlePublish = (id: string) => {

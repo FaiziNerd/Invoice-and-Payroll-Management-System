@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/dialog";
 import { getDepartments } from "@/lib/repositories/departments";
 import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/repositories/employees";
+import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
@@ -42,8 +44,9 @@ export default function EditEmployeePage({
   const { id } = use(params);
   const router = useRouter();
   const { session } = useAuth();
-  const employee = getEmployeeById(id);
-  const departments = getDepartments();
+  const dataReady = useCompanyDataReady();
+  const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
+  const departments = useStorageData(() => getDepartments(), ["departments"]);
   const [showDelete, setShowDelete] = useState(false);
 
   const [form, setForm] = useState(() =>
@@ -69,6 +72,10 @@ export default function EditEmployeePage({
     () => employee?.salaryStructure.deductions || []
   );
 
+  if (!dataReady) {
+    return <RoleGate roles={["admin", "hr"]}><CardGridSkeleton count={3} /></RoleGate>;
+  }
+
   if (!employee || !form) {
     return (
       <RoleGate roles={["admin", "hr"]}>
@@ -86,13 +93,13 @@ export default function EditEmployeePage({
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session || !form.departmentId) {
       toast.error("Please fill required fields");
       return;
     }
-    updateEmployee(
+    const result = await updateEmployee(
       id,
       {
         ...form,
@@ -102,14 +109,18 @@ export default function EditEmployeePage({
       session.userId,
       session.name
     );
+    if (!result) {
+      toast.error("Failed to update employee");
+      return;
+    }
     toast.success("Employee updated");
     router.push(`/employees/${id}`);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!session) return;
     try {
-      deleteEmployee(id, session.userId, session.name);
+      await deleteEmployee(id, session.userId, session.name);
       toast.success("Employee deleted");
       router.push("/employees");
     } catch (err) {

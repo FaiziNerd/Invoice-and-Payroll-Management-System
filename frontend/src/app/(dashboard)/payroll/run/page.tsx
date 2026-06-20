@@ -39,6 +39,8 @@ export default function RunPayrollPage() {
     if (run) {
       toast.success("Payroll run created");
       router.push(`/payroll/${run.id}`);
+    } else {
+      toast.error("Failed to create payroll run");
     }
   };
 

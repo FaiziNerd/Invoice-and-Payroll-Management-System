@@ -3,7 +3,7 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { promoteOverdueInvoices } from "@/lib/api/invoices/promote-overdue";
 
 export async function POST() {
-  const result = await requireCompanyContext();
+  const result = await requireCompanyContext({ roles: ["admin", "accountant"] });
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
 

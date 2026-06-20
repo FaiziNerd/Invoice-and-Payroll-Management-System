@@ -45,22 +45,26 @@ export default function SettingsPage() {
     setDefaultTemplateId(settings.defaultTemplateId || "none");
   }, [settings]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session) return;
     if (!name.trim()) {
       toast.error("Organization name is required");
       return;
     }
-    updateSettings(
-      {
-        name: name.trim(),
-        address: address.trim(),
-        defaultTemplateId: defaultTemplateId === "none" ? "" : defaultTemplateId,
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Organization settings saved");
+    try {
+      await updateSettings(
+        {
+          name: name.trim(),
+          address: address.trim(),
+          defaultTemplateId: defaultTemplateId === "none" ? "" : defaultTemplateId,
+        },
+        session.userId,
+        session.name
+      );
+      toast.success("Organization settings saved");
+    } catch {
+      toast.error("Failed to save settings");
+    }
   };
 
   return (

@@ -4,6 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getTemplateById, publishTemplate } from "@/lib/repositories/templates";
+import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +35,15 @@ export default function TemplatePreviewPage({
   const { templateId } = use(params);
   const router = useRouter();
   const { session } = useAuth();
-  const [template, setTemplate] = useState(() => getTemplateById(templateId));
+  const dataReady = useCompanyDataReady();
+  const templateFromCache = useStorageData(() => getTemplateById(templateId), ["templates"]);
+  const [localTemplate, setLocalTemplate] = useState(templateFromCache);
+  const template = localTemplate ?? templateFromCache;
   const [showActivateDialog, setShowActivateDialog] = useState(false);
+
+  if (!dataReady) {
+    return <RoleGate roles={["admin", "accountant"]}><CardGridSkeleton count={2} /></RoleGate>;
+  }
 
   if (!template) {
     return (
@@ -59,7 +68,7 @@ export default function TemplatePreviewPage({
     if (!session) return;
     const updated = await publishTemplate(templateId, session.userId, session.name);
     if (updated) {
-      setTemplate(updated);
+      setLocalTemplate(updated);
       setShowActivateDialog(false);
       toast.success("Template published and activated");
       router.push("/designer");

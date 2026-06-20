@@ -25,7 +25,8 @@ import {
   markPayrollPaid,
 } from "@/lib/repositories/payroll";
 import { getEmployees } from "@/lib/repositories/employees";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
@@ -45,6 +46,7 @@ export default function PayrollDetailPage({
   const { runId } = use(params);
   const router = useRouter();
   const { session } = useAuth();
+  const dataReady = useCompanyDataReady();
   const [run, setRun] = useState<PayrollRun | undefined>(() => getPayrollRunById(runId));
 
   const refresh = () => setRun(getPayrollRunById(runId));
@@ -53,6 +55,10 @@ export default function PayrollDetailPage({
   const employeeMap = useMemo(() => {
     return new Map(employees.map((emp) => [emp.id, emp]));
   }, [employees]);
+
+  if (!dataReady) {
+    return <RoleGate roles={["admin", "accountant", "hr"]}><CardGridSkeleton count={3} /></RoleGate>;
+  }
 
   if (!run) {
     return (
@@ -71,24 +77,36 @@ export default function PayrollDetailPage({
     );
   }
 
-  const handleEntryUpdate = (entryId: string, field: "bonus" | "oneOffDeduction", value: number) => {
+  const handleEntryUpdate = async (entryId: string, field: "bonus" | "oneOffDeduction", value: number) => {
     if (!session) return;
-    updatePayrollEntry(runId, entryId, { [field]: value }, session.userId, session.name);
-    refresh();
+    const updated = await updatePayrollEntry(runId, entryId, { [field]: value }, session.userId, session.name);
+    if (updated) {
+      setRun(updated);
+    } else {
+      refresh();
+    }
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
     if (!session) return;
-    processPayrollRun(runId, session.userId, session.name);
+    const result = await processPayrollRun(runId, session.userId, session.name);
+    if (!result) {
+      toast.error("Failed to process payroll");
+      return;
+    }
+    setRun(result);
     toast.success("Payroll processed");
-    refresh();
   };
 
-  const handleMarkPaid = () => {
+  const handleMarkPaid = async () => {
     if (!session) return;
-    markPayrollPaid(runId, session.userId, session.name);
+    const result = await markPayrollPaid(runId, session.userId, session.name);
+    if (!result) {
+      toast.error("Failed to mark payroll as paid");
+      return;
+    }
+    setRun(result);
     toast.success("Payroll marked as paid");
-    refresh();
   };
 
   const handleExport = () => {

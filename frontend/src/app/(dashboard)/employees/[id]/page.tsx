@@ -18,7 +18,8 @@ import {
 } from "@/lib/repositories/employees";
 import { getDepartmentById } from "@/lib/repositories/departments";
 import { getSlipsByEmployeeId } from "@/lib/repositories/salary-slips";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const dataReady = useCompanyDataReady();
   const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
   const slips = useStorageData(() => getSlipsByEmployeeId(id), ["salary_slips"]);
 
@@ -46,6 +48,10 @@ export default function EmployeeDetailPage({
       toast.error("Failed to download salary slip");
     }
   };
+
+  if (!dataReady) {
+    return <RoleGate roles={["admin", "hr"]}><CardGridSkeleton count={3} /></RoleGate>;
+  }
 
   if (!employee) {
     return (

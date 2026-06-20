@@ -61,30 +61,38 @@ export default function DepartmentsPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session) return;
     if (!form.name.trim()) {
       setNameError("Department name is required");
       return;
     }
-    if (editing) {
-      updateDepartment(editing.id, form, session.userId, session.name);
-      toast.success("Department updated");
-    } else {
-      createDepartment(form, session.userId, session.name);
-      toast.success("Department created");
+    try {
+      if (editing) {
+        const result = await updateDepartment(editing.id, form, session.userId, session.name);
+        if (!result) {
+          toast.error("Department not found");
+          return;
+        }
+        toast.success("Department updated");
+      } else {
+        await createDepartment(form, session.userId, session.name);
+        toast.success("Department created");
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save department");
     }
-    setDialogOpen(false);
   };
 
   const handleDelete = (dept: Department) => {
     setDeleteTarget(dept);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!session || !deleteTarget) return;
     try {
-      deleteDepartment(deleteTarget.id, session.userId, session.name);
+      await deleteDepartment(deleteTarget.id, session.userId, session.name);
       toast.success("Department deleted");
       setDeleteTarget(null);
     } catch (err) {

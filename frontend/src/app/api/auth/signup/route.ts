@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.errors[0]?.message ?? "Invalid input", 400);
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Invalid input", 400);
   }
 
   const input = parsed.data;

@@ -24,6 +24,8 @@ import {
   createTemplate,
   updateTemplate,
 } from "@/lib/repositories/templates";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -53,6 +55,7 @@ export default function TemplateEditorPage({
   const isNew = templateId === "new";
   const router = useRouter();
   const { session } = useAuth();
+  const dataReady = useCompanyDataReady();
 
   const existing = !isNew ? getTemplateById(templateId) : null;
 
@@ -60,6 +63,10 @@ export default function TemplateEditorPage({
   const [theme, setTheme] = useState<"classic" | "modern" | "minimal">(existing?.theme || "modern");
   const [branding, setBranding] = useState<TemplateBranding>(existing?.branding || defaultBranding);
   const [isActive, setIsActive] = useState(existing?.isActive ?? false);
+
+  if (!isNew && !dataReady) {
+    return <RoleGate roles={["admin", "accountant"]}><CardGridSkeleton count={2} /></RoleGate>;
+  }
 
   if (!isNew && !existing) {
     return (
