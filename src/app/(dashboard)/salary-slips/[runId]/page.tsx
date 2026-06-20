@@ -9,12 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getPayrollRunById } from "@/lib/mock-db/payroll";
 import { getSlipsByRunId, generateSlipsForRun } from "@/lib/mock-db/salary-slips";
 import { getEmployeeById } from "@/lib/mock-db/employees";
-import { downloadSalarySlipPDF } from "@/lib/pdf/salary-slip-pdf";
+import { downloadSalarySlipPDF, downloadSalarySlipsZip } from "@/lib/pdf/salary-slip-pdf";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
-import type { SalarySlip } from "@/types";
+import type { SalarySlip, Employee } from "@/types";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -57,16 +57,22 @@ export default function SalarySlipsRunPage({
   };
 
   const handleBulkDownload = async () => {
+    const items = slips
+      .map((slip) => {
+        const emp = getEmployeeById(slip.employeeId);
+        return emp ? { slip, employee: emp } : null;
+      })
+      .filter((item): item is { slip: SalarySlip; employee: Employee } => item !== null);
+
+    if (items.length === 0) return;
+
     setDownloading(true);
-    for (const slip of slips) {
-      const emp = getEmployeeById(slip.employeeId);
-      if (emp) {
-        await downloadSalarySlipPDF(slip, emp);
-        await new Promise((r) => setTimeout(r, 300));
-      }
+    try {
+      await downloadSalarySlipsZip(items, `salary-slips-${run.month}-${run.year}.zip`);
+      toast.success(`Downloaded ${items.length} salary slips as ZIP`);
+    } finally {
+      setDownloading(false);
     }
-    setDownloading(false);
-    toast.success(`Downloaded ${slips.length} salary slips`);
   };
 
   const displaySlips = slips.length > 0 ? slips : [];
@@ -86,7 +92,7 @@ export default function SalarySlipsRunPage({
             ) : (
               <Button variant="outline" onClick={handleBulkDownload} disabled={downloading}>
                 <Download className="h-4 w-4" />
-                {downloading ? "Downloading..." : "Download All"}
+                {downloading ? "Downloading..." : "Download All (ZIP)"}
               </Button>
             )}
             <Button variant="outline" asChild>

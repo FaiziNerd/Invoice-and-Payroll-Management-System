@@ -8,8 +8,11 @@ import {
   StyleSheet,
   pdf,
 } from "@react-pdf/renderer";
+import JSZip from "jszip";
 import type { SalarySlip, Employee } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { getDefaultTemplate } from "@/lib/mock-db/templates";
+import { getDepartmentById } from "@/lib/mock-db/departments";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
@@ -54,17 +57,36 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+function getSalarySlipCompanyName(): string {
+  return getDefaultTemplate()?.branding.companyName || "DotCode Solutions";
+}
+
+function getEmployeeDepartmentName(employee: Employee): string {
+  return getDepartmentById(employee.departmentId)?.name || "Unknown";
+}
+
+function getSalarySlipFilename(slip: SalarySlip, employee: Employee): string {
+  return `salary-slip-${employee.employeeId}-${slip.month}-${slip.year}.pdf`;
+}
+
 interface SalarySlipPDFProps {
   slip: SalarySlip;
   employee: Employee;
+  companyName?: string;
+  departmentName?: string;
 }
 
-function SalarySlipPDFDocument({ slip, employee }: SalarySlipPDFProps) {
+function SalarySlipPDFDocument({
+  slip,
+  employee,
+  companyName = getSalarySlipCompanyName(),
+  departmentName = getEmployeeDepartmentName(employee),
+}: SalarySlipPDFProps) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.company}>DotCode Solutions</Text>
+          <Text style={styles.company}>{companyName}</Text>
           <Text style={styles.title}>Salary Slip - {MONTHS[slip.month - 1]} {slip.year}</Text>
         </View>
 
@@ -74,7 +96,10 @@ function SalarySlipPDFDocument({ slip, employee }: SalarySlipPDFProps) {
             <Text>ID: {employee.employeeId}</Text>
           </View>
           <View style={styles.row}>
-            <Text>Department: {employee.position}</Text>
+            <Text>Department: {departmentName}</Text>
+            <Text>Position: {employee.position}</Text>
+          </View>
+          <View style={styles.row}>
             <Text>Email: {employee.email}</Text>
           </View>
         </View>
@@ -128,14 +153,45 @@ function SalarySlipPDFDocument({ slip, employee }: SalarySlipPDFProps) {
   );
 }
 
-export async function downloadSalarySlipPDF(slip: SalarySlip, employee: Employee) {
-  const blob = await pdf(
-    <SalarySlipPDFDocument slip={slip} employee={employee} />
+async function generateSalarySlipPDFBlob(slip: SalarySlip, employee: Employee): Promise<Blob> {
+  const companyName = getSalarySlipCompanyName();
+  const departmentName = getEmployeeDepartmentName(employee);
+  return pdf(
+    <SalarySlipPDFDocument
+      slip={slip}
+      employee={employee}
+      companyName={companyName}
+      departmentName={departmentName}
+    />
   ).toBlob();
+}
+
+export async function downloadSalarySlipPDF(slip: SalarySlip, employee: Employee) {
+  const blob = await generateSalarySlipPDFBlob(slip, employee);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `salary-slip-${employee.employeeId}-${slip.month}-${slip.year}.pdf`;
+  link.download = getSalarySlipFilename(slip, employee);
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadSalarySlipsZip(
+  items: { slip: SalarySlip; employee: Employee }[],
+  zipFilename: string
+) {
+  const zip = new JSZip();
+
+  for (const { slip, employee } of items) {
+    const blob = await generateSalarySlipPDFBlob(slip, employee);
+    zip.file(getSalarySlipFilename(slip, employee), blob);
+  }
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(zipBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = zipFilename;
   link.click();
   URL.revokeObjectURL(url);
 }
