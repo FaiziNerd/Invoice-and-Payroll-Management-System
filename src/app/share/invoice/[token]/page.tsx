@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo } from "react";
+import Image from "next/image";
 import { getInvoiceByToken } from "@/lib/mock-db/invoices";
 import { getClientById } from "@/lib/mock-db/clients";
 import { getTemplateById } from "@/lib/mock-db/templates";
@@ -36,7 +37,14 @@ export default function PublicInvoicePage({
             <div className="flex justify-between items-start border-b-2 pb-6 mb-6" style={{ borderColor: primaryColor }}>
               <div>
                 {template?.branding.logo && (
-                  <img src={template.branding.logo} alt="Logo" className="h-12 mb-2" />
+                  <Image
+                    src={template.branding.logo}
+                    alt="Logo"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="h-12 w-auto mb-2"
+                  />
                 )}
                 <h1 className="text-xl font-bold" style={{ color: primaryColor }}>
                   {template?.branding.companyName || "DotCode Solutions"}

@@ -81,6 +81,8 @@ function InvoicePDFDocument({ invoice, client, template }: InvoicePDFProps) {
         <View style={styles.header}>
           <View>
             {branding?.sections.logo && branding.logo && (
+              // @react-pdf Image is not an HTML img element
+              // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={branding.logo} style={styles.logo} />
             )}
             <Text style={styles.companyName}>

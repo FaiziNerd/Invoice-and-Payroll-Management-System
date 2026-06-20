@@ -26,7 +26,6 @@ import { getInvoices } from "@/lib/mock-db/invoices";
 import { getClients } from "@/lib/mock-db/clients";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { InvoiceStatus } from "@/types";
 import { RoleGate } from "@/components/auth/role-gate";
 
 export default function InvoicesPage() {

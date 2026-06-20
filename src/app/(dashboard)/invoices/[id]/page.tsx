@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,9 +11,13 @@ import {
   CheckCircle,
   Clock,
   Pencil,
+  Copy,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -40,7 +44,7 @@ import { getClientById } from "@/lib/mock-db/clients";
 import { getTemplateById } from "@/lib/mock-db/templates";
 import { downloadInvoicePDF } from "@/lib/pdf/invoice-pdf";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -60,10 +64,22 @@ export default function InvoiceDetailPage({
   const [showQrDialog, setShowQrDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [shareUrl, setShareUrl] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
 
-  const invoice = useMemo(() => getInvoiceById(id), [id, refreshKey]);
-  const client = useMemo(() => (invoice ? getClientById(invoice.clientId) : undefined), [invoice]);
-  const template = useMemo(() => (invoice ? getTemplateById(invoice.templateId) : undefined), [invoice]);
+  void refreshKey;
+  const invoice = getInvoiceById(id);
+  const client = invoice ? getClientById(invoice.clientId) : undefined;
+  const template = invoice ? getTemplateById(invoice.templateId) : undefined;
+
+  useEffect(() => {
+    if (!invoice) return;
+    setShareUrl(`${window.location.origin}/share/invoice/${invoice.shareToken}`);
+  }, [invoice]);
+
+  useEffect(() => {
+    if (!showQrDialog) setLinkCopied(false);
+  }, [showQrDialog]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -71,13 +87,13 @@ export default function InvoiceDetailPage({
     return <p className="text-center py-20 text-muted-foreground">Invoice not found</p>;
   }
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/share/invoice/${invoice.shareToken}`
-    : `/share/invoice/${invoice.shareToken}`;
+  const daysOverdue = invoice.status === "overdue" ? getDaysOverdue(invoice.dueDate) : 0;
 
   const handleCopyLink = async () => {
+    if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
       toast.success("Link copied to clipboard");
     } catch {
       toast.error("Failed to copy link");
@@ -159,7 +175,15 @@ export default function InvoiceDetailPage({
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Invoice Details</CardTitle>
-                <InvoiceStatusBadge status={invoice.status} />
+                <div className="flex items-center gap-2">
+                  {invoice.status === "overdue" && daysOverdue > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                      <AlertTriangle className="h-3 w-3" />
+                      {daysOverdue} day{daysOverdue !== 1 ? "s" : ""} overdue
+                    </span>
+                  )}
+                  <InvoiceStatusBadge status={invoice.status} />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -219,16 +243,35 @@ export default function InvoiceDetailPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {invoice.history.map((entry) => (
-                  <div key={entry.id} className="border-l-2 border-primary pl-3">
-                    <p className="text-sm font-medium">{entry.action}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.userName || (entry.userId ? getUserById(entry.userId)?.name : undefined) || "Unknown"} · {new Date(entry.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {invoice.history.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No history yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {invoice.history.map((entry) => {
+                    const isOverdueEntry = entry.action.toLowerCase().includes("overdue");
+                    const actor =
+                      entry.userName ||
+                      (entry.userId ? getUserById(entry.userId)?.name : undefined) ||
+                      "Unknown";
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`border-l-2 pl-3 ${
+                          isOverdueEntry ? "border-destructive" : "border-primary"
+                        }`}
+                      >
+                        <p className={`text-sm font-medium ${isOverdueEntry ? "text-destructive" : ""}`}>
+                          {entry.action}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {actor} · {new Date(entry.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -255,9 +298,24 @@ export default function InvoiceDetailPage({
               <DialogDescription>Scan QR code or copy the link to share</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
-              <QRCodeSVG value={shareUrl} size={200} />
-              <p className="text-sm text-muted-foreground break-all text-center">{shareUrl}</p>
-              <Button variant="outline" size="sm" onClick={handleCopyLink}>Copy Link</Button>
+              <QRCodeSVG value={shareUrl || `/share/invoice/${invoice.shareToken}`} size={200} />
+              <div className="flex w-full gap-2">
+                <Input
+                  readOnly
+                  value={shareUrl}
+                  className="text-sm"
+                  aria-label="Share link"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopyLink}
+                  disabled={!shareUrl}
+                  aria-label={linkCopied ? "Link copied" : "Copy link"}
+                >
+                  {linkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

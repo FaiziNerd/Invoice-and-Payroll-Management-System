@@ -120,6 +120,15 @@ export function updatePayrollEntry(
   run.totalNet = run.entries.reduce((s, e) => s + e.netPay, 0);
   runs[runIndex] = run;
   setInStorage(KEY, runs);
+  addAuditLog({
+    action: "update",
+    entity: "payroll",
+    entityId: runId,
+    userId,
+    userName,
+    description: `Updated payroll entry adjustments for ${run.month}/${run.year}`,
+    metadata: { entryId, updates },
+  });
   return run;
 }
 

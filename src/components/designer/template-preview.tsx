@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { TemplateBranding } from "@/types";
 
 export function TemplatePreview({
@@ -15,7 +16,14 @@ export function TemplatePreview({
       >
         <div>
           {branding.sections.logo && branding.logo && (
-            <img src={branding.logo} alt="Logo" className={compact ? "h-6 mb-1" : "h-10 mb-2"} />
+            <Image
+              src={branding.logo}
+              alt="Logo"
+              width={compact ? 24 : 40}
+              height={compact ? 24 : 40}
+              unoptimized
+              className={compact ? "h-6 w-auto mb-1" : "h-10 w-auto mb-2"}
+            />
           )}
           <p className="font-bold" style={{ color: branding.primaryColor }}>
             {branding.companyName}

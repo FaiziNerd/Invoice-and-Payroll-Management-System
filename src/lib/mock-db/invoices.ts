@@ -10,26 +10,45 @@ export function getInvoices(): Invoice[] {
   return resolveOverdueStatuses(invoices);
 }
 
+const OVERDUE_HISTORY_ACTION = "Status changed to overdue";
+
+function hasOverdueHistoryEntry(invoice: Invoice): boolean {
+  return invoice.history.some((entry) => entry.action === OVERDUE_HISTORY_ACTION);
+}
+
+function appendOverdueHistory(invoice: Invoice): Invoice {
+  return {
+    ...invoice,
+    status: "overdue" as InvoiceStatus,
+    history: [
+      {
+        id: generateId(),
+        action: OVERDUE_HISTORY_ACTION,
+        timestamp: new Date().toISOString(),
+        userId: "system",
+        userName: "System",
+      },
+      ...invoice.history,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function resolveOverdueStatuses(invoices: Invoice[]): Invoice[] {
   let changed = false;
   const updated = invoices.map((invoice) => {
-    if (invoice.status === "sent" && new Date(invoice.dueDate) < new Date()) {
+    const isPastDue = new Date(invoice.dueDate) < new Date();
+
+    if (invoice.status === "sent" && isPastDue) {
       changed = true;
-      return {
-        ...invoice,
-        status: "overdue" as InvoiceStatus,
-        history: [
-          {
-            id: generateId(),
-            action: "Status changed to overdue",
-            timestamp: new Date().toISOString(),
-            userId: "system",
-            userName: "System",
-          },
-          ...invoice.history,
-        ],
-      };
+      return appendOverdueHistory(invoice);
     }
+
+    if (invoice.status === "overdue" && isPastDue && !hasOverdueHistoryEntry(invoice)) {
+      changed = true;
+      return appendOverdueHistory(invoice);
+    }
+
     return invoice;
   });
   if (changed) setInStorage(KEY, updated);

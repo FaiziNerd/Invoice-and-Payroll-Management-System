@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Plus, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -22,7 +21,7 @@ import { RoleGate } from "@/components/auth/role-gate";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function PayrollPage() {
-  const [runs, setRuns] = useState(() => getPayrollRuns());
+  const runs = getPayrollRuns();
 
   return (
     <RoleGate roles={["admin", "accountant", "hr"]}>
