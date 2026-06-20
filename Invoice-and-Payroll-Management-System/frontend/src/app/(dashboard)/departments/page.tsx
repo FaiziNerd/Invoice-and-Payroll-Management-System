@@ -30,7 +30,7 @@ import {
   createDepartment,
   updateDepartment,
   deleteDepartment,
-} from "@/lib/mock-db/departments";
+} from "@/lib/repositories/departments";
 import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
@@ -61,20 +61,24 @@ export default function DepartmentsPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session) return;
     if (!form.name.trim()) {
       setNameError("Department name is required");
       return;
     }
-    if (editing) {
-      updateDepartment(editing.id, form, session.userId, session.name);
-      toast.success("Department updated");
-    } else {
-      createDepartment(form, session.userId, session.name);
-      toast.success("Department created");
+    try {
+      if (editing) {
+        await updateDepartment(editing.id, form, session.userId, session.name);
+        toast.success("Department updated");
+      } else {
+        await createDepartment(form, session.userId, session.name);
+        toast.success("Department created");
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
     }
-    setDialogOpen(false);
   };
 
   const handleDelete = (dept: Department) => {

@@ -1,13 +1,17 @@
 "use client";
 
-import { use, useMemo } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm, invoiceToFormValues } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
-import { getInvoiceById, updateInvoice } from "@/lib/mock-db/invoices";
+import {
+  fetchInvoiceById,
+  getInvoiceById,
+  updateInvoice,
+} from "@/lib/repositories/invoices";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -22,7 +26,27 @@ export default function EditInvoicePage({
   const { id } = use(params);
   const router = useRouter();
   const { session } = useAuth();
-  const invoice = useMemo(() => getInvoiceById(id), [id]);
+  const [invoice, setInvoice] = useState(() => getInvoiceById(id));
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsLoadingInvoice(true);
+    void fetchInvoiceById(id)
+      .then((next) => {
+        if (mounted) setInvoice(next);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingInvoice(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (isLoadingInvoice) {
+    return <div className="py-12 text-center text-sm text-muted-foreground">Loading invoice...</div>;
+  }
 
   if (!invoice) {
     return (
@@ -56,7 +80,7 @@ export default function EditInvoicePage({
     );
   }
 
-  const handleSubmit = (values: InvoiceFormValues) => {
+  const handleSubmit = async (values: InvoiceFormValues) => {
     if (!session || !values.clientId) {
       toast.error("Please select a client");
       return;
@@ -65,22 +89,26 @@ export default function EditInvoicePage({
       toast.error("Add at least one line item");
       return;
     }
-    updateInvoice(
-      id,
-      {
-        clientId: values.clientId,
-        templateId: values.templateId,
-        items: values.items,
-        taxRate: values.taxRate,
-        dueDate: new Date(values.dueDate).toISOString(),
-        notes: values.notes,
-      },
-      session.userId,
-      session.name,
-      "Invoice updated"
-    );
-    toast.success("Invoice updated");
-    router.push(`/invoices/${id}`);
+    try {
+      await updateInvoice(
+        id,
+        {
+          clientId: values.clientId,
+          templateId: values.templateId,
+          items: values.items,
+          taxRate: values.taxRate,
+          dueDate: new Date(values.dueDate).toISOString(),
+          notes: values.notes,
+        },
+        session.userId,
+        session.name,
+        "Invoice updated"
+      );
+      toast.success("Invoice updated");
+      router.push(`/invoices/${id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update invoice");
+    }
   };
 
   return (

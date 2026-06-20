@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Download, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,16 +8,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getPayrollRunById } from "@/lib/mock-db/payroll";
-import { getSlipsByRunId, generateSlipsForRun } from "@/lib/mock-db/salary-slips";
-import { getEmployeeById } from "@/lib/mock-db/employees";
-import { downloadSalarySlipPDF, downloadSalarySlipsZip } from "@/lib/pdf/salary-slip-pdf";
+import { getPayrollRunById, fetchPayrollRunById } from "@/lib/repositories/payroll";
+import { getSlipsByRunId, generateSlipsForRun } from "@/lib/repositories/salary-slips";
+import { getEmployeeById } from "@/lib/repositories/employees";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
-
-import type { SalarySlip, Employee } from "@/types";
+import type { PayrollRun, SalarySlip, Employee } from "@/types";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -28,9 +26,23 @@ export default function SalarySlipsRunPage({
 }) {
   const { runId } = use(params);
   const { session } = useAuth();
-  const run = getPayrollRunById(runId);
+  const [run, setRun] = useState<PayrollRun | undefined>(() => getPayrollRunById(runId));
+  const [isLoadingRun, setIsLoadingRun] = useState(!run);
   const [slips, setSlips] = useState<SalarySlip[]>(() => getSlipsByRunId(runId));
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    if (run) return;
+    fetchPayrollRunById(runId).then((r) => { setRun(r); setIsLoadingRun(false); });
+  }, [runId, run]);
+
+  if (isLoadingRun) {
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
 
   if (!run) {
     return (
@@ -66,9 +78,9 @@ export default function SalarySlipsRunPage({
     );
   }
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!session) return;
-    const generated = generateSlipsForRun(run, session.userId, session.name);
+    const generated = await generateSlipsForRun(run, session.userId, session.name);
     setSlips(generated);
     toast.success(`Generated ${generated.length} salary slips`);
   };
@@ -76,6 +88,7 @@ export default function SalarySlipsRunPage({
   const handleDownload = async (slip: SalarySlip) => {
     const emp = getEmployeeById(slip.employeeId);
     if (!emp) return;
+    const { downloadSalarySlipPDF } = await import("@/lib/pdf/salary-slip-pdf");
     await downloadSalarySlipPDF(slip, emp);
     toast.success(`Downloaded slip for ${emp.firstName} ${emp.lastName}`);
   };
@@ -92,6 +105,7 @@ export default function SalarySlipsRunPage({
 
     setDownloading(true);
     try {
+      const { downloadSalarySlipsZip } = await import("@/lib/pdf/salary-slip-pdf");
       await downloadSalarySlipsZip(items, `salary-slips-${run.month}-${run.year}.zip`);
       toast.success(`Downloaded ${items.length} salary slips as ZIP`);
     } finally {

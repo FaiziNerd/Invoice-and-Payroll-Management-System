@@ -12,7 +12,6 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  password: string;
   avatar?: string;
   createdAt: string;
 }
@@ -22,6 +21,7 @@ export interface Session {
   email: string;
   role: UserRole;
   name: string;
+  companyId: string;
 }
 
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";

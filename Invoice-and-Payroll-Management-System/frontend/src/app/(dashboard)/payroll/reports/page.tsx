@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPayrollRuns } from "@/lib/mock-db/payroll";
-import { getEmployees } from "@/lib/mock-db/employees";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { getPayrollRuns } from "@/lib/repositories/payroll";
+import { getEmployees } from "@/lib/repositories/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { KpiSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { exportToCSV } from "@/lib/csv";
@@ -33,9 +34,19 @@ const COLORS = ["#2563eb", "#7c3aed", "#10b981", "#f59e0b", "#ef4444"];
 
 export default function PayrollReportsPage() {
   const { session } = useAuth();
-  const runs = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
-  const employees = useStorageData(() => getEmployees(), ["employees"]);
-  const departments = useStorageData(() => getDepartments(), ["departments"]);
+  const { data: runs, isLoading: runsLoading } = useStorageDataWithLoading(
+    () => getPayrollRuns(),
+    ["payroll_runs"]
+  );
+  const { data: employees, isLoading: employeesLoading } = useStorageDataWithLoading(
+    () => getEmployees(),
+    ["employees"]
+  );
+  const { data: departments, isLoading: departmentsLoading } = useStorageDataWithLoading(
+    () => getDepartments(),
+    ["departments"]
+  );
+  const isLoading = runsLoading || employeesLoading || departmentsLoading;
 
   const processedRuns = runs.filter((r) => r.status === "processed" || r.status === "paid");
   const totalExpense = processedRuns.reduce((s, r) => s + r.totalNet, 0);
@@ -101,6 +112,9 @@ export default function PayrollReportsPage() {
           </div>
         </PageHeader>
 
+        {isLoading ? (
+          <KpiSkeleton count={3} />
+        ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Total Payroll Expense</CardTitle></CardHeader>
@@ -119,53 +133,56 @@ export default function PayrollReportsPage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {monthlyTrend.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle>Monthly Expense Trend</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={monthlyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="expense" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+        {!isLoading && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {monthlyTrend.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>Monthly Expense Trend</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={monthlyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="month" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Bar dataKey="expense" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
 
-          {deptChartData.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle>Department-wise Expense</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie
-                      data={deptChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
-                    >
-                      {deptChartData.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {deptChartData.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>Department-wise Expense</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={deptChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
+                      >
+                        {deptChartData.map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
-        {runs.length === 0 && (
+        {!isLoading && runs.length === 0 && (
           <Card>
             <CardContent className="pt-6">
               <EmptyState

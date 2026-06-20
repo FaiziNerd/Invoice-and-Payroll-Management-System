@@ -23,7 +23,7 @@ import {
   getTemplateById,
   createTemplate,
   updateTemplate,
-} from "@/lib/mock-db/templates";
+} from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -31,13 +31,14 @@ import { TemplatePreview } from "@/components/designer/template-preview";
 import { PublishFlowSteps } from "@/components/designer/publish-flow-steps";
 import { MobilePreviewFrame } from "@/components/designer/mobile-preview-frame";
 import type { TemplateBranding } from "@/types";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 
 const defaultBranding: TemplateBranding = {
   primaryColor: "#2563eb",
   secondaryColor: "#64748b",
   fontFamily: "Inter",
   sections: { logo: true, notes: true, paymentTerms: true, footer: true },
-  companyName: "DotCode Solutions",
+  companyName: DEFAULT_COMPANY_PLACEHOLDER,
   companyAddress: "123 Business Ave, Suite 100, New York, NY 10001",
   paymentTerms: "Payment due within 30 days.",
   footerText: "Thank you for your business!",
@@ -87,11 +88,11 @@ export default function TemplateEditorPage({
     reader.readAsDataURL(file);
   };
 
-  const persistTemplate = (redirectToPreview = false) => {
+  const persistTemplate = async (redirectToPreview = false) => {
     if (!session) return null;
 
     if (isNew) {
-      const created = createTemplate(
+      const created = await createTemplate(
         { name, isDefault: false, isActive: false, theme, branding },
         session.userId,
         session.name
@@ -106,7 +107,7 @@ export default function TemplateEditorPage({
     }
 
     if (existing) {
-      const updated = updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
+      const updated = await updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
       if (updated) {
         setIsActive(updated.isActive);
         toast.success("Template saved");
@@ -121,11 +122,11 @@ export default function TemplateEditorPage({
   };
 
   const handleSave = () => {
-    persistTemplate(false);
+    void persistTemplate(false);
   };
 
   const handleSaveAndPreview = () => {
-    persistTemplate(true);
+    void persistTemplate(true);
   };
 
   return (

@@ -11,11 +11,12 @@ import {
 } from "@react-pdf/renderer";
 import type { Invoice, Client, InvoiceTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/mock-db/settings";
+import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/repositories/settings";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 
 function resolveCompany(template?: InvoiceTemplate) {
   return {
-    name: getOrganizationCompanyName() || template?.branding.companyName || "DotCode Solutions",
+    name: getOrganizationCompanyName() || template?.branding.companyName || DEFAULT_COMPANY_PLACEHOLDER,
     address: getOrganizationAddress() || template?.branding.companyAddress || "",
     primaryColor: template?.branding.primaryColor || "#2563eb",
     branding: template?.branding,

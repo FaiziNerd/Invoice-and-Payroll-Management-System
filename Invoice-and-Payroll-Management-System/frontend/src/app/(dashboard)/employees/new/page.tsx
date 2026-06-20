@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { createEmployee } from "@/lib/mock-db/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { createEmployee, getEmployees } from "@/lib/repositories/employees";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ export default function NewEmployeePage() {
   const departments = getDepartments();
 
   const [form, setForm] = useState({
-    employeeId: `EMP-${String(getDepartments().length + 4).padStart(3, "0")}`,
+    employeeId: `EMP-${String(getEmployees().length + 1).padStart(3, "0")}`,
     firstName: "",
     lastName: "",
     email: "",
@@ -60,7 +60,7 @@ export default function NewEmployeePage() {
     return errs;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
     const errs = validate();
@@ -68,18 +68,22 @@ export default function NewEmployeePage() {
       setErrors(errs);
       return;
     }
-    const emp = createEmployee(
-      {
-        ...form,
-        joinDate: new Date(form.joinDate).toISOString(),
-        status: "active",
-        salaryStructure: { baseSalary: form.baseSalary, allowances, deductions },
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Employee created");
-    router.push(`/employees/${emp.id}`);
+    try {
+      const emp = await createEmployee(
+        {
+          ...form,
+          joinDate: new Date(form.joinDate).toISOString(),
+          status: "active",
+          salaryStructure: { baseSalary: form.baseSalary, allowances, deductions },
+        },
+        session.userId,
+        session.name
+      );
+      toast.success("Employee created");
+      router.push(`/employees/${emp.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create employee");
+    }
   };
 
   const clearError = (field: keyof FieldErrors) => {

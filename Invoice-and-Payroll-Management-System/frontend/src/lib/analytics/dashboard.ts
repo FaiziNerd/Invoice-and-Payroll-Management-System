@@ -80,20 +80,21 @@ export function computeDepartmentPayroll(
   return Object.entries(deptExpenses).map(([name, value]) => ({ name, value }));
 }
 
-export interface AiInsight {
+export interface DashboardInsight {
   id: string;
   text: string;
   type: "warning" | "info" | "success";
 }
 
-export function generateAiInsights(
+/** Rule-based billing highlights from current invoice and revenue data. */
+export function generateDashboardInsights(
   invoices: Invoice[],
   clients: { id: string; name: string }[],
   revenueMoM: number | null,
   overdueCount: number,
   overdueTotal: number
-): AiInsight[] {
-  const insights: AiInsight[] = [];
+): DashboardInsight[] {
+  const insights: DashboardInsight[] = [];
 
   if (overdueCount > 0) {
     insights.push({

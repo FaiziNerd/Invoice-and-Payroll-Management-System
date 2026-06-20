@@ -25,12 +25,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getClients,
   createClient,
   updateClient,
   deleteClient,
-} from "@/lib/mock-db/clients";
-import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+} from "@/lib/repositories/clients";
+import { useClients } from "@/hooks/use-clients";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -45,7 +44,7 @@ type SortDir = "asc" | "desc";
 
 export default function ClientsPage() {
   const { session } = useAuth();
-  const { data: clients, isLoading } = useStorageDataWithLoading(() => getClients(), ["clients"]);
+  const { clients, isLoading } = useClients();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -95,27 +94,31 @@ export default function ClientsPage() {
     return errors;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session) return;
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    if (editing) {
-      updateClient(editing.id, form, session.userId, session.name);
-      toast.success("Client updated");
-    } else {
-      createClient(form, session.userId, session.name);
-      toast.success("Client created");
+    try {
+      if (editing) {
+        await updateClient(editing.id, form, session.userId, session.name);
+        toast.success("Client updated");
+      } else {
+        await createClient(form, session.userId, session.name);
+        toast.success("Client created");
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save client");
     }
-    setDialogOpen(false);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!session || !deleteTarget) return;
     try {
-      deleteClient(deleteTarget.id, session.userId, session.name);
+      await deleteClient(deleteTarget.id, session.userId, session.name);
       toast.success("Client deleted");
       setDeleteTarget(null);
     } catch (err) {

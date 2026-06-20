@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Trash2, Plus } from "lucide-react";
@@ -26,13 +26,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { getEmployeeById, updateEmployee, deleteEmployee } from "@/lib/mock-db/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { getEmployeeById, fetchEmployeeById, updateEmployee, deleteEmployee } from "@/lib/repositories/employees";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
-import type { SalaryAllowance, SalaryDeduction } from "@/types";
+import type { Employee, SalaryAllowance, SalaryDeduction } from "@/types";
 
 export default function EditEmployeePage({
   params,
@@ -42,32 +42,66 @@ export default function EditEmployeePage({
   const { id } = use(params);
   const router = useRouter();
   const { session } = useAuth();
-  const employee = getEmployeeById(id);
+  const [employee, setEmployee] = useState<Employee | undefined>(() => getEmployeeById(id));
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(!getEmployeeById(id));
   const departments = getDepartments();
   const [showDelete, setShowDelete] = useState(false);
 
-  const [form, setForm] = useState(() =>
-    employee
+  const [form, setForm] = useState(() => {
+    const emp = getEmployeeById(id);
+    return emp
       ? {
-          employeeId: employee.employeeId,
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          email: employee.email,
-          phone: employee.phone,
-          departmentId: employee.departmentId,
-          position: employee.position,
-          joinDate: employee.joinDate.split("T")[0],
-          status: employee.status,
-          baseSalary: employee.salaryStructure.baseSalary,
+          employeeId: emp.employeeId,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          email: emp.email,
+          phone: emp.phone,
+          departmentId: emp.departmentId,
+          position: emp.position,
+          joinDate: emp.joinDate.split("T")[0],
+          status: emp.status,
+          baseSalary: emp.salaryStructure.baseSalary,
         }
-      : null
-  );
+      : null;
+  });
   const [allowances, setAllowances] = useState<SalaryAllowance[]>(
-    () => employee?.salaryStructure.allowances || []
+    () => getEmployeeById(id)?.salaryStructure.allowances ?? []
   );
   const [deductions, setDeductions] = useState<SalaryDeduction[]>(
-    () => employee?.salaryStructure.deductions || []
+    () => getEmployeeById(id)?.salaryStructure.deductions ?? []
   );
+
+  useEffect(() => {
+    if (employee) return;
+    fetchEmployeeById(id).then((emp) => {
+      setEmployee(emp);
+      if (emp) {
+        setForm({
+          employeeId: emp.employeeId,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          email: emp.email,
+          phone: emp.phone,
+          departmentId: emp.departmentId,
+          position: emp.position,
+          joinDate: emp.joinDate.split("T")[0],
+          status: emp.status,
+          baseSalary: emp.salaryStructure.baseSalary,
+        });
+        setAllowances(emp.salaryStructure.allowances);
+        setDeductions(emp.salaryStructure.deductions);
+      }
+      setIsLoadingEmployee(false);
+    });
+  }, [id, employee]);
+
+  if (isLoadingEmployee) {
+    return (
+      <RoleGate roles={["admin", "hr"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
 
   if (!employee || !form) {
     return (
@@ -86,24 +120,28 @@ export default function EditEmployeePage({
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session || !form.departmentId) {
       toast.error("Please fill required fields");
       return;
     }
-    updateEmployee(
-      id,
-      {
-        ...form,
-        joinDate: new Date(form.joinDate).toISOString(),
-        salaryStructure: { baseSalary: form.baseSalary, allowances, deductions },
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Employee updated");
-    router.push(`/employees/${id}`);
+    try {
+      await updateEmployee(
+        id,
+        {
+          ...form,
+          joinDate: new Date(form.joinDate).toISOString(),
+          salaryStructure: { baseSalary: form.baseSalary, allowances, deductions },
+        },
+        session.userId,
+        session.name
+      );
+      toast.success("Employee updated");
+      router.push(`/employees/${id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update employee");
+    }
   };
 
   const handleDelete = () => {

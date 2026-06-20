@@ -1,9 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getTemplateById, publishTemplate } from "@/lib/mock-db/templates";
+import { getTemplateById, fetchTemplateById, publishTemplate } from "@/lib/repositories/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,21 @@ export default function TemplatePreviewPage({
   const router = useRouter();
   const { session } = useAuth();
   const [template, setTemplate] = useState(() => getTemplateById(templateId));
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(!getTemplateById(templateId));
   const [showActivateDialog, setShowActivateDialog] = useState(false);
+
+  useEffect(() => {
+    if (template) return;
+    fetchTemplateById(templateId).then((t) => { setTemplate(t); setIsLoadingTemplate(false); });
+  }, [templateId, template]);
+
+  if (isLoadingTemplate) {
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+      </RoleGate>
+    );
+  }
 
   if (!template) {
     return (
@@ -55,9 +69,9 @@ export default function TemplatePreviewPage({
 
   const { branding } = template;
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (!session) return;
-    const updated = publishTemplate(templateId, session.userId, session.name);
+    const updated = await publishTemplate(templateId, session.userId, session.name);
     if (updated) {
       setTemplate(updated);
       setShowActivateDialog(false);

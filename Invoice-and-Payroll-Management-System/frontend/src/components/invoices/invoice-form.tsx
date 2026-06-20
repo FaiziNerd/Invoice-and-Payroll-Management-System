@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getClients } from "@/lib/mock-db/clients";
-import { getActiveTemplates } from "@/lib/mock-db/templates";
+import { useClients } from "@/hooks/use-clients";
+import { getActiveTemplates } from "@/lib/repositories/templates";
 import { generateId } from "@/lib/utils";
 import { Plus, Trash2, X } from "lucide-react";
 import type { Client, Invoice, InvoiceLineItem } from "@/types";
@@ -49,7 +49,7 @@ export function InvoiceForm({
   onSubmit,
   onCancel,
 }: InvoiceFormProps) {
-  const clients = getClients();
+  const { clients } = useClients();
   const templates = getActiveTemplates();
 
   const [clientId, setClientId] = useState(initialValues?.clientId || "");

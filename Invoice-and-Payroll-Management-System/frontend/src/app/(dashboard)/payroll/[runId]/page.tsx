@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Download, Play } from "lucide-react";
@@ -23,8 +23,9 @@ import {
   updatePayrollEntry,
   processPayrollRun,
   markPayrollPaid,
-} from "@/lib/mock-db/payroll";
-import { getEmployeeById } from "@/lib/mock-db/employees";
+} from "@/lib/repositories/payroll";
+import { getEmployees } from "@/lib/repositories/employees";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
@@ -46,7 +47,37 @@ export default function PayrollDetailPage({
   const { session } = useAuth();
   const [run, setRun] = useState<PayrollRun | undefined>(() => getPayrollRunById(runId));
 
-  const refresh = () => setRun(getPayrollRunById(runId));
+  const employees = useStorageData(() => getEmployees(), ["employees"]);
+  const employeeMap = useMemo(() => {
+    return new Map(employees.map((emp) => [emp.id, emp]));
+  }, [employees]);
+
+  const entryDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const handleEntryUpdate = useCallback((entryId: string, field: "bonus" | "oneOffDeduction", value: number) => {
+    if (!session) return;
+    const key = `${entryId}-${field}`;
+    clearTimeout(entryDebounceRef.current[key]);
+    entryDebounceRef.current[key] = setTimeout(async () => {
+      const updated = await updatePayrollEntry(runId, entryId, { [field]: value }, session.userId, session.name);
+      if (updated) setRun(updated);
+      else toast.error("Failed to update entry");
+    }, 300);
+  }, [runId, session]);
+
+  const handleProcess = async () => {
+    if (!session) return;
+    const updated = await processPayrollRun(runId, session.userId, session.name);
+    if (updated) { setRun(updated); toast.success("Payroll processed"); }
+    else toast.error("Failed to process payroll");
+  };
+
+  const handleMarkPaid = async () => {
+    if (!session) return;
+    const updated = await markPayrollPaid(runId, session.userId, session.name);
+    if (updated) { setRun(updated); toast.success("Payroll marked as paid"); }
+    else toast.error("Failed to mark payroll as paid");
+  };
 
   if (!run) {
     return (
@@ -65,29 +96,9 @@ export default function PayrollDetailPage({
     );
   }
 
-  const handleEntryUpdate = (entryId: string, field: "bonus" | "oneOffDeduction", value: number) => {
-    if (!session) return;
-    updatePayrollEntry(runId, entryId, { [field]: value }, session.userId, session.name);
-    refresh();
-  };
-
-  const handleProcess = () => {
-    if (!session) return;
-    processPayrollRun(runId, session.userId, session.name);
-    toast.success("Payroll processed");
-    refresh();
-  };
-
-  const handleMarkPaid = () => {
-    if (!session) return;
-    markPayrollPaid(runId, session.userId, session.name);
-    toast.success("Payroll marked as paid");
-    refresh();
-  };
-
   const handleExport = () => {
     const data = run.entries.map((entry) => {
-      const emp = getEmployeeById(entry.employeeId);
+      const emp = employeeMap.get(entry.employeeId);
       return {
         employee: emp ? `${emp.firstName} ${emp.lastName}` : "Unknown",
         employeeId: emp?.employeeId || "",
@@ -192,7 +203,7 @@ export default function PayrollDetailPage({
                 </TableHeader>
                 <TableBody>
                   {run.entries.map((entry) => {
-                    const emp = getEmployeeById(entry.employeeId);
+                    const emp = employeeMap.get(entry.employeeId);
                     return (
                       <TableRow key={entry.id}>
                         <TableCell className="font-medium">
@@ -234,7 +245,7 @@ export default function PayrollDetailPage({
             </div>
             <div className="space-y-3 md:hidden">
               {run.entries.map((entry) => {
-                const emp = getEmployeeById(entry.employeeId);
+                const emp = employeeMap.get(entry.employeeId);
                 return (
                   <div key={entry.id} className="rounded-lg border p-4">
                     <p className="font-medium">{emp ? `${emp.firstName} ${emp.lastName}` : "Unknown"}</p>

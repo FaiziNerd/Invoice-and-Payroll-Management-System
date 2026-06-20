@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Download, Search } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { getAuditLogs } from "@/lib/audit";
+import { loadAuditLogsFromApi } from "@/lib/audit";
+import type { AuditLog } from "@/types";
 import { exportToCSV } from "@/lib/csv";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import { toast } from "sonner";
 import type { AuditAction } from "@/types";
 
@@ -43,8 +45,12 @@ export default function ActivityPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [entityFilter, setEntityFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [allLogs, setAllLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const allLogs = useMemo(() => getAuditLogs(), []);
+  useEffect(() => {
+    void loadAuditLogsFromApi().then((logs) => { setAllLogs(logs); setIsLoading(false); });
+  }, []);
 
   const filtered = useMemo(() => {
     return allLogs.filter((log) => {
@@ -122,7 +128,9 @@ export default function ActivityPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {allLogs.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton rows={6} cols={5} />
+            ) : allLogs.length === 0 ? (
               <EmptyState
                 icon="inbox"
                 title="No activity yet"

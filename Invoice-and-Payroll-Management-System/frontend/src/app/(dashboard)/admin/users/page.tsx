@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,7 +11,7 @@ import {
   updateUser,
   deleteUser,
   USER_ROLES,
-} from "@/lib/mock-db/auth";
+} from "@/lib/auth/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
+import { copyTextToClipboard } from "@/lib/utils";
 import type { User, UserRole } from "@/types";
 
 interface UserForm {
@@ -53,16 +54,120 @@ interface UserForm {
 
 const emptyForm: UserForm = { name: "", email: "", role: "accountant", password: "" };
 
+function InviteCodesCard() {
+  const [invites, setInvites] = useState<
+    Array<{ id: string; token: string; role: string; expires_at: string }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const loadInvites = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/invites", { credentials: "include" });
+      const json = await res.json();
+      if (json.success) setInvites(json.data ?? []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadInvites();
+  }, []);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ role: "accountant", expiresInDays: 7 }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Failed");
+      toast.success("Invite code generated");
+      await loadInvites();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate invite");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyInvite = async (token: string) => {
+    const link = `${window.location.origin}/signup?invite=${token}`;
+    const copied = await copyTextToClipboard(link);
+    if (copied) {
+      toast.success("Invite link copied");
+    } else {
+      toast.error("Could not copy — select and copy the code manually");
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="font-medium">Invite codes</h3>
+            <p className="text-sm text-muted-foreground">
+              Single-use codes for new team members. Share the link — slug-based joining is disabled.
+            </p>
+          </div>
+          <Button onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating..." : "Generate invite"}
+          </Button>
+        </div>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading invites...</p>
+        ) : invites.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active invite codes.</p>
+        ) : (
+          <div className="space-y-2">
+            {invites.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+              >
+                <div>
+                  <p className="font-mono text-xs break-all">{inv.token}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {inv.role} · expires {new Date(inv.expires_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyInvite(inv.token)}>
+                  Copy link
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function UsersPage() {
   const { session } = useAuth();
-  const [users, setUsers] = useState(() => getUsers());
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>(emptyForm);
 
-  const refresh = () => setUsers(getUsers());
+  const refresh = async () => {
+    setLoading(true);
+    setUsers(await getUsers());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, [session?.companyId]);
 
   const openCreate = () => {
     setEditing(null);
@@ -76,14 +181,14 @@ export default function UsersPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session || !form.name || !form.email) {
       toast.error("Name and email are required");
       return;
     }
     try {
       if (editing) {
-        updateUser(
+        await updateUser(
           editing.id,
           {
             name: form.name,
@@ -100,24 +205,24 @@ export default function UsersPage() {
           toast.error("Password is required for new users");
           return;
         }
-        createUser(form, session.userId, session.name);
+        await createUser(form, session.userId, session.name);
         toast.success("User created");
       }
       setDialogOpen(false);
-      refresh();
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save user");
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!session || !deleting) return;
     try {
-      deleteUser(deleting.id, session.userId, session.name);
-      toast.success("User deleted");
+      await deleteUser(deleting.id, session.userId, session.name);
+      toast.success("User removed from company");
       setDeleteOpen(false);
       setDeleting(null);
-      refresh();
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete user");
     }
@@ -132,9 +237,13 @@ export default function UsersPage() {
           </Button>
         </PageHeader>
 
+        <InviteCodesCard />
+
         <Card>
           <CardContent className="pt-6">
-            {users.length === 0 ? (
+            {loading ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Loading users...</p>
+            ) : users.length === 0 ? (
               <EmptyState
                 icon="users"
                 title="No users yet"
@@ -249,14 +358,14 @@ export default function UsersPage() {
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete User</DialogTitle>
+              <DialogTitle>Remove User</DialogTitle>
               <DialogDescription>
-                Delete {deleting?.name}? This cannot be undone.
+                Remove {deleting?.name} from this company? Their account will remain but lose access here.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+              <Button variant="destructive" onClick={handleDelete}>Remove</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

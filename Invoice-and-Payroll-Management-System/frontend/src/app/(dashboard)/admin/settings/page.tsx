@@ -15,16 +15,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getSettings, updateSettings } from "@/lib/mock-db/settings";
-import { getTemplates } from "@/lib/mock-db/templates";
+import { getSettings, updateSettings } from "@/lib/repositories/settings";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
+import { getTemplates } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { session } = useAuth();
-  const settings = useStorageData(() => getSettings(), ["settings"]);
-  const templates = useStorageData(() => getTemplates(), ["templates"]);
+  const { data: settings, isLoading: settingsLoading } = useStorageDataWithLoading(
+    () => getSettings(),
+    ["settings"]
+  );
+  const { data: templates, isLoading: templatesLoading } = useStorageDataWithLoading(
+    () => getTemplates(),
+    ["templates"]
+  );
+  const isLoading = settingsLoading || templatesLoading;
 
   const [name, setName] = useState(settings.name);
   const [address, setAddress] = useState(settings.address);
@@ -36,22 +45,26 @@ export default function SettingsPage() {
     setDefaultTemplateId(settings.defaultTemplateId || "none");
   }, [settings]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!session) return;
     if (!name.trim()) {
       toast.error("Organization name is required");
       return;
     }
-    updateSettings(
-      {
-        name: name.trim(),
-        address: address.trim(),
-        defaultTemplateId: defaultTemplateId === "none" ? "" : defaultTemplateId,
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Organization settings saved");
+    try {
+      await updateSettings(
+        {
+          name: name.trim(),
+          address: address.trim(),
+          defaultTemplateId: defaultTemplateId === "none" ? "" : defaultTemplateId,
+        },
+        session.userId,
+        session.name
+      );
+      toast.success("Organization settings saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save settings");
+    }
   };
 
   return (
@@ -62,6 +75,9 @@ export default function SettingsPage() {
           description="Company details used on invoices and salary slip PDFs"
         />
 
+        {isLoading ? (
+          <CardGridSkeleton count={1} />
+        ) : (
         <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle>Company Profile</CardTitle>
@@ -73,7 +89,7 @@ export default function SettingsPage() {
                 id="org-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="DotCode Solutions"
+                placeholder={DEFAULT_COMPANY_PLACEHOLDER}
               />
             </div>
             <div className="space-y-2">
@@ -106,6 +122,7 @@ export default function SettingsPage() {
             <Button onClick={handleSave}>Save Settings</Button>
           </CardContent>
         </Card>
+        )}
       </div>
     </RoleGate>
   );

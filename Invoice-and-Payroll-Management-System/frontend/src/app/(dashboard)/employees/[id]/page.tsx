@@ -15,10 +15,9 @@ import {
   calculateGrossPay,
   calculateTotalDeductions,
   calculateNetPay,
-} from "@/lib/mock-db/employees";
-import { getDepartmentById } from "@/lib/mock-db/departments";
-import { getSlipsByEmployeeId } from "@/lib/mock-db/salary-slips";
-import { downloadSalarySlipPDF } from "@/lib/pdf/salary-slip-pdf";
+} from "@/lib/repositories/employees";
+import { getDepartmentById } from "@/lib/repositories/departments";
+import { getSlipsByEmployeeId } from "@/lib/repositories/salary-slips";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -40,6 +39,7 @@ export default function EmployeeDetailPage({
     const emp = getEmployeeById(id);
     if (!slip || !emp) return;
     try {
+      const { downloadSalarySlipPDF } = await import("@/lib/pdf/salary-slip-pdf");
       await downloadSalarySlipPDF(slip, emp);
       toast.success("Salary slip downloaded");
     } catch {

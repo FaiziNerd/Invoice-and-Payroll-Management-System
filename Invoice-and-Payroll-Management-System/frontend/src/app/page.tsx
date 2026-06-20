@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth-provider";
 import { useTheme } from "next-themes";
+import { APP_NAME } from "@/lib/branding";
 
 const modules = [
   { icon: FileText, title: "Invoicing", description: "Create, send, and track professional invoices with PDF export and share links." },
@@ -42,7 +43,7 @@ const bonusFeatures = [
   { icon: Download, label: "CSV Export" },
   { icon: QrCode, label: "QR Codes" },
   { icon: Activity, label: "Audit Logs" },
-  { icon: Sparkles, label: "AI Insights" },
+  { icon: Sparkles, label: "Smart Summary" },
 ];
 
 const painPoints = [
@@ -86,7 +87,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs text-primary-foreground">
               IP
             </div>
-            <span>DotCode IPMS</span>
+            <span>{APP_NAME}</span>
           </Link>
           <div className="flex items-center gap-2">
             <Button
@@ -110,7 +111,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28">
         <div className="mx-auto max-w-3xl space-y-6">
           <p className="text-sm font-medium uppercase tracking-wider text-primary">
-            DotCode Solutions
+            Invoice &amp; Payroll Management
           </p>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Smart Invoice &amp; Payroll Management Platform
@@ -234,11 +235,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
           <h2 className="text-3xl font-bold">Ready to streamline your business?</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Sign in with a demo account and explore the full platform — no setup required.
+            Create your company account and start managing invoices and payroll in one place.
           </p>
           <Button size="lg" className="mt-8" asChild>
-            <Link href="/login">
-              Sign in to Demo <ArrowRight className="ml-2 h-4 w-4" />
+            <Link href="/signup">
+              Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>
@@ -250,10 +251,10 @@ export default function LandingPage() {
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs text-primary-foreground">
               IP
             </div>
-            DotCode Solutions
+            {APP_NAME}
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} DotCode Solutions. All rights reserved.
+            &copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.
           </p>
         </div>
       </footer>

@@ -14,7 +14,7 @@ import {
   duplicateTemplate,
   deleteTemplate,
   updateTemplate,
-} from "@/lib/mock-db/templates";
+} from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -26,26 +26,27 @@ export default function DesignerPage() {
 
   const refresh = () => setTemplates(getTemplates());
 
-  const handleDuplicate = (id: string) => {
+  const handleDuplicate = async (id: string) => {
     if (!session) return;
-    duplicateTemplate(id, session.userId, session.name);
+    await duplicateTemplate(id, session.userId, session.name);
     toast.success("Template duplicated");
     refresh();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!session) return;
-    if (deleteTemplate(id, session.userId, session.name)) {
+    try {
+      await deleteTemplate(id, session.userId, session.name);
       toast.success("Template deleted");
       refresh();
-    } else {
+    } catch {
       toast.error("Cannot delete default template");
     }
   };
 
-  const handleSetDefault = (id: string) => {
+  const handleSetDefault = async (id: string) => {
     if (!session) return;
-    updateTemplate(id, { isDefault: true }, session.userId, session.name);
+    await updateTemplate(id, { isDefault: true }, session.userId, session.name);
     toast.success("Default template updated");
     refresh();
   };

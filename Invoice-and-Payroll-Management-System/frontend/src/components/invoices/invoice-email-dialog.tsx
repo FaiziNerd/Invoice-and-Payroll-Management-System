@@ -43,7 +43,7 @@ export function InvoiceEmailDialog({
         <DialogHeader>
           <DialogTitle>{getEmailDialogTitle(mode)}</DialogTitle>
           <DialogDescription>
-            Preview the email before sending. This is a mock — no email is actually delivered.
+            Review the message below. The client will receive a real email with a link to view the invoice.
           </DialogDescription>
         </DialogHeader>
 
@@ -55,6 +55,10 @@ export function InvoiceEmailDialog({
           <div>
             <span className="text-muted-foreground">Subject: </span>
             <span className="font-medium">{preview.subject}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Share link: </span>
+            <span className="break-all font-medium">{preview.shareUrl}</span>
           </div>
           <div className="border-t pt-3">
             <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">

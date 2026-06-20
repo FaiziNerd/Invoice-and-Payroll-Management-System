@@ -10,12 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-
-const DEMO_ACCOUNTS = [
-  { email: "admin@dotcode.com", password: "admin123", role: "Admin" },
-  { email: "accountant@dotcode.com", password: "acc123", role: "Accountant" },
-  { email: "hr@dotcode.com", password: "hr123", role: "HR" },
-];
+import { APP_NAME } from "@/lib/branding";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -38,11 +33,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemo = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
@@ -58,7 +48,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
             IP
           </div>
-          <h1 className="text-2xl font-bold">DotCode IPMS</h1>
+          <h1 className="text-2xl font-bold">{APP_NAME}</h1>
           <p className="text-muted-foreground">Invoice &amp; Payroll Management</p>
         </div>
 
@@ -76,7 +66,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@dotcode.com"
+                  placeholder="you@company.com"
                   required
                 />
               </div>
@@ -114,25 +104,12 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Demo Accounts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => fillDemo(acc.email, acc.password)}
-                aria-label={`Fill ${acc.role} demo credentials`}
-                className="flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent transition-colors"
-              >
-                <span className="font-medium">{acc.role}</span>
-                <span className="text-muted-foreground">{acc.email}</span>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -5,12 +5,13 @@ import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ToastProvider } from "@/providers/toast-provider";
+import { APP_DESCRIPTION, APP_TITLE } from "@/lib/branding";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "DotCode IPMS - Invoice & Payroll Management",
-  description: "Smart Invoice & Payroll Management Platform by DotCode Solutions",
+  title: APP_TITLE,
+  description: APP_DESCRIPTION,
 };
 
 export default function RootLayout({

@@ -41,22 +41,22 @@ import {
 } from "@/components/ui/table";
 import {
   getInvoiceById,
+  fetchInvoiceById,
   updateInvoiceStatus,
   deleteInvoice,
   sendInvoiceEmail,
-} from "@/lib/mock-db/invoices";
-import { getClientById } from "@/lib/mock-db/clients";
-import { getTemplateById } from "@/lib/mock-db/templates";
-import { downloadInvoicePDF } from "@/lib/pdf/invoice-pdf";
+} from "@/lib/repositories/invoices";
+import { fetchClientById } from "@/lib/repositories/clients";
+import { getTemplateById } from "@/lib/repositories/templates";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
 import type { EmailMode } from "@/lib/invoices/email";
-import { formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
+import { copyTextToClipboard, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { QRCodeSVG } from "qrcode.react";
-import { getUserById } from "@/lib/mock-db/auth";
+import type { Client } from "@/types";
 
 export default function InvoiceDetailPage({
   params,
@@ -72,11 +72,39 @@ export default function InvoiceDetailPage({
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareUrl, setShareUrl] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [invoice, setInvoice] = useState(() => getInvoiceById(id));
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
 
-  void refreshKey;
-  const invoice = getInvoiceById(id);
-  const client = invoice ? getClientById(invoice.clientId) : undefined;
   const template = invoice ? getTemplateById(invoice.templateId) : undefined;
+  const [client, setClient] = useState<Client | undefined>(undefined);
+  const [isLoadingClient, setIsLoadingClient] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsLoadingInvoice(true);
+    void fetchInvoiceById(id)
+      .then((next) => {
+        if (mounted) setInvoice(next);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingInvoice(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [id, refreshKey]);
+
+  useEffect(() => {
+    if (!invoice) {
+      setClient(undefined);
+      setIsLoadingClient(false);
+      return;
+    }
+    setIsLoadingClient(true);
+    void fetchClientById(invoice.clientId)
+      .then(setClient)
+      .finally(() => setIsLoadingClient(false));
+  }, [invoice?.clientId]);
 
   useEffect(() => {
     if (!invoice) return;
@@ -88,6 +116,16 @@ export default function InvoiceDetailPage({
   }, [showQrDialog]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  if (isLoadingInvoice || isLoadingClient) {
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Loading invoice...
+        </div>
+      </RoleGate>
+    );
+  }
 
   if (!invoice || !client) {
     return (
@@ -110,46 +148,59 @@ export default function InvoiceDetailPage({
 
   const handleCopyLink = async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
       setLinkCopied(true);
       toast.success("Link copied to clipboard");
-    } catch {
+    } else {
       toast.error("Failed to copy link");
     }
   };
 
   const handleDownloadPDF = async () => {
+    const { downloadInvoicePDF } = await import("@/lib/pdf/invoice-pdf");
     await downloadInvoicePDF(invoice, client, template);
     toast.success("PDF downloaded");
   };
 
-  const handleEmailConfirm = () => {
+  const handleEmailConfirm = async () => {
     if (!session || !emailMode) return;
-    sendInvoiceEmail(invoice.id, session.userId, session.name, client.email, emailMode);
-    setEmailMode(null);
+    try {
+      await sendInvoiceEmail(invoice.id, session.userId, session.name, client.email, emailMode);
+      setEmailMode(null);
 
-    const messages: Record<EmailMode, string> = {
-      send: `Invoice sent to ${client.email}`,
-      resend: `Invoice resent to ${client.email}`,
-      reminder: `Payment reminder sent to ${client.email}`,
-    };
-    toast.success(messages[emailMode]);
-    refresh();
+      const messages: Record<EmailMode, string> = {
+        send: `Invoice sent to ${client.email}`,
+        resend: `Invoice resent to ${client.email}`,
+        reminder: `Payment reminder sent to ${client.email}`,
+      };
+      toast.success(messages[emailMode]);
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send email");
+    }
   };
 
-  const handleMarkPaid = () => {
+  const handleMarkPaid = async () => {
     if (!session) return;
-    updateInvoiceStatus(invoice.id, "paid", session.userId, session.name);
-    toast.success("Invoice marked as paid");
-    refresh();
+    try {
+      await updateInvoiceStatus(invoice.id, "paid", session.userId, session.name);
+      toast.success("Invoice marked as paid");
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update invoice");
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!session) return;
-    deleteInvoice(invoice.id, session.userId, session.name);
-    toast.success("Invoice deleted");
-    router.push("/invoices");
+    try {
+      await deleteInvoice(invoice.id, session.userId, session.name);
+      toast.success("Invoice deleted");
+      router.push("/invoices");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete invoice");
+    }
   };
 
   return (
@@ -280,10 +331,7 @@ export default function InvoiceDetailPage({
                   {invoice.history.map((entry) => {
                     const isOverdueEntry = entry.action.toLowerCase().includes("overdue");
                     const isReminderEntry = entry.action.toLowerCase().includes("reminder");
-                    const actor =
-                      entry.userName ||
-                      (entry.userId ? getUserById(entry.userId)?.name : undefined) ||
-                      "Unknown";
+                    const actor = entry.userName || "Unknown";
 
                     return (
                       <div

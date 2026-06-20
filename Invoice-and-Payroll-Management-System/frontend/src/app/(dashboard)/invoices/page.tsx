@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Plus, Search, ChevronUp, ChevronDown, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getInvoices } from "@/lib/mock-db/invoices";
-import { getClients } from "@/lib/mock-db/clients";
-import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { getInvoices } from "@/lib/repositories/invoices";
+import { useClients } from "@/hooks/use-clients";
+import { useStorageDataWithLoading, useCompanyDataReady } from "@/hooks/use-storage-data";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
@@ -49,8 +49,10 @@ export default function InvoicesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
 
-  const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
-  const clients = useStorageData(() => getClients(), ["clients"]);
+  const companyReady = useCompanyDataReady();
+  const { data: invoices } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
+  const { clients } = useClients();
+  const isLoading = !companyReady;
 
   const isFiltered =
     search !== "" ||
@@ -68,18 +70,20 @@ export default function InvoicesPage() {
     setPage(1);
   };
 
-  const filtered = invoices.filter((inv) => {
-    const client = clients.find((c) => c.id === inv.clientId);
-    const matchesSearch =
-      inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
-      client?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
-    const matchesClient = clientFilter === "all" || inv.clientId === clientFilter;
-    const issueDate = new Date(inv.issueDate);
-    const matchesFrom = !dateFrom || issueDate >= new Date(dateFrom);
-    const matchesTo = !dateTo || issueDate <= new Date(`${dateTo}T23:59:59`);
-    return matchesSearch && matchesStatus && matchesClient && matchesFrom && matchesTo;
-  });
+  const filtered = useMemo(() => {
+    return invoices.filter((inv) => {
+      const client = clients.find((c) => c.id === inv.clientId);
+      const matchesSearch =
+        inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
+        client?.name.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
+      const matchesClient = clientFilter === "all" || inv.clientId === clientFilter;
+      const issueDate = new Date(inv.issueDate);
+      const matchesFrom = !dateFrom || issueDate >= new Date(dateFrom);
+      const matchesTo = !dateTo || issueDate <= new Date(`${dateTo}T23:59:59`);
+      return matchesSearch && matchesStatus && matchesClient && matchesFrom && matchesTo;
+    });
+  }, [invoices, clients, search, statusFilter, clientFilter, dateFrom, dateTo]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -91,19 +95,21 @@ export default function InvoicesPage() {
     setPage(1);
   };
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (!sortField) return 0;
-    let cmp = 0;
-    if (sortField === "amount") cmp = a.total - b.total;
-    else if (sortField === "dueDate") cmp = a.dueDate.localeCompare(b.dueDate);
-    else if (sortField === "status") {
-      cmp = STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status);
-    }
-    return sortDir === "asc" ? cmp : -cmp;
-  });
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      if (!sortField) return 0;
+      let cmp = 0;
+      if (sortField === "amount") cmp = a.total - b.total;
+      else if (sortField === "dueDate") cmp = a.dueDate.localeCompare(b.dueDate);
+      else if (sortField === "status") {
+        cmp = STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortField, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(sorted.length / PAGE_SIZE)), [sorted]);
+  const paged = useMemo(() => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [sorted, page]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp className="h-3 w-3 opacity-30" />;

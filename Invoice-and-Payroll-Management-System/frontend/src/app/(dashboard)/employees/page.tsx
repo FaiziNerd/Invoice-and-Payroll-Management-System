@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Plus, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -16,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getEmployees, calculateNetPay } from "@/lib/mock-db/employees";
-import { getDepartments } from "@/lib/mock-db/departments";
-import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { getEmployees, calculateNetPay } from "@/lib/repositories/employees";
+import { getDepartments } from "@/lib/repositories/departments";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -27,7 +27,7 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const { data: employees, isLoading } = useStorageDataWithLoading(() => getEmployees(), ["employees"]);
-  const departments = useStorageData(() => getDepartments(), ["departments"]);
+  const { data: departments } = useStorageDataWithLoading(() => getDepartments(), ["departments"]);
 
   const isFiltered = search !== "" || deptFilter !== "all";
 
@@ -36,12 +36,14 @@ export default function EmployeesPage() {
     setDeptFilter("all");
   };
 
-  const filtered = employees.filter((emp) => {
-    const name = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-    const matchesSearch = name.includes(search.toLowerCase()) || emp.employeeId.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = deptFilter === "all" || emp.departmentId === deptFilter;
-    return matchesSearch && matchesDept;
-  });
+  const filtered = useMemo(() => {
+    return employees.filter((emp) => {
+      const name = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const matchesSearch = name.includes(search.toLowerCase()) || emp.employeeId.toLowerCase().includes(search.toLowerCase());
+      const matchesDept = deptFilter === "all" || emp.departmentId === deptFilter;
+      return matchesSearch && matchesDept;
+    });
+  }, [employees, search, deptFilter]);
 
   return (
     <RoleGate roles={["admin", "hr"]}>
