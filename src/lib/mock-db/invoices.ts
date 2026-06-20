@@ -7,7 +7,33 @@ const KEY = "invoices";
 
 export function getInvoices(): Invoice[] {
   const invoices = getFromStorage<Invoice[]>(KEY, []);
-  return invoices.map(updateOverdueStatus);
+  return resolveOverdueStatuses(invoices);
+}
+
+function resolveOverdueStatuses(invoices: Invoice[]): Invoice[] {
+  let changed = false;
+  const updated = invoices.map((invoice) => {
+    if (invoice.status === "sent" && new Date(invoice.dueDate) < new Date()) {
+      changed = true;
+      return {
+        ...invoice,
+        status: "overdue" as InvoiceStatus,
+        history: [
+          {
+            id: generateId(),
+            action: "Status changed to overdue",
+            timestamp: new Date().toISOString(),
+            userId: "system",
+            userName: "System",
+          },
+          ...invoice.history,
+        ],
+      };
+    }
+    return invoice;
+  });
+  if (changed) setInStorage(KEY, updated);
+  return updated;
 }
 
 export function getInvoiceById(id: string): Invoice | undefined {
@@ -16,16 +42,6 @@ export function getInvoiceById(id: string): Invoice | undefined {
 
 export function getInvoiceByToken(token: string): Invoice | undefined {
   return getInvoices().find((i) => i.shareToken === token);
-}
-
-function updateOverdueStatus(invoice: Invoice): Invoice {
-  if (
-    invoice.status === "sent" &&
-    new Date(invoice.dueDate) < new Date()
-  ) {
-    return { ...invoice, status: "overdue" };
-  }
-  return invoice;
 }
 
 export function calculateInvoiceTotals(
@@ -65,6 +81,7 @@ export function createInvoice(
         action: "Invoice created",
         timestamp: new Date().toISOString(),
         userId,
+        userName,
       },
     ],
     createdAt: new Date().toISOString(),
@@ -112,6 +129,7 @@ export function updateInvoice(
         action: historyAction,
         timestamp: new Date().toISOString(),
         userId,
+        userName,
       },
       ...updated.history,
     ];

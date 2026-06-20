@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
+import { TemplatePreview } from "@/components/designer/template-preview";
 import type { TemplateBranding } from "@/types";
 
 const defaultBranding: TemplateBranding = {
@@ -180,35 +181,30 @@ export default function TemplateEditorPage({
             </Card>
           </div>
 
-          <Card className="sticky top-6 h-fit">
-            <CardHeader><CardTitle>Live Preview</CardTitle></CardHeader>
-            <CardContent>
-              <div className="rounded-lg border p-6" style={{ fontFamily: branding.fontFamily }}>
-                <div className="flex justify-between border-b-2 pb-4 mb-4" style={{ borderColor: branding.primaryColor }}>
-                  <div>
-                    {branding.sections.logo && branding.logo && (
-                      <img src={branding.logo} alt="Logo" className="h-10 mb-2" />
-                    )}
-                    <p className="font-bold" style={{ color: branding.primaryColor }}>{branding.companyName}</p>
-                    <p className="text-xs text-muted-foreground">{branding.companyAddress}</p>
+          <div className="space-y-4 sticky top-6 h-fit">
+            <Card>
+              <CardHeader><CardTitle>Live Preview</CardTitle></CardHeader>
+              <CardContent className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Desktop</p>
+                  <div className="rounded-lg border p-4">
+                    <TemplatePreview branding={branding} />
                   </div>
-                  <p className="text-xl font-bold" style={{ color: branding.primaryColor }}>INVOICE</p>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div className="h-6 rounded" style={{ backgroundColor: branding.primaryColor, opacity: 0.1 }} />
-                  <div className="h-4 rounded bg-muted" />
-                  <div className="h-4 rounded bg-muted w-3/4" />
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Mobile</p>
+                  <div className="rounded-lg border p-3 max-w-[220px] mx-auto">
+                    <TemplatePreview branding={branding} compact />
+                  </div>
                 </div>
-                {branding.sections.paymentTerms && (
-                  <p className="text-xs mt-4 text-muted-foreground">{branding.paymentTerms}</p>
-                )}
-                {branding.sections.footer && (
-                  <p className="text-xs mt-4 text-center text-muted-foreground">{branding.footerText}</p>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-4 text-center">Mobile preview scales automatically</p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            {!isNew && existing && !existing.isActive && (
+              <Button variant="outline" className="w-full" onClick={() => router.push(`/designer/preview/${templateId}`)}>
+                Review & Publish
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </RoleGate>

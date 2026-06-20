@@ -1,5 +1,7 @@
 import { getFromStorage, setInStorage } from "./storage";
-import type { User, Session } from "@/types";
+import type { User, Session, UserRole } from "@/types";
+import { generateId } from "@/lib/utils";
+import { addAuditLog } from "@/lib/audit";
 
 const USERS_KEY = "users";
 const SESSION_KEY = "session";
@@ -74,3 +76,88 @@ export function hasSessionCookie(): boolean {
   if (typeof document === "undefined") return false;
   return document.cookie.includes(`${SESSION_COOKIE}=1`);
 }
+
+export function getUserById(id: string): User | undefined {
+  return getUsers().find((u) => u.id === id);
+}
+
+export function createUser(
+  data: Omit<User, "id" | "createdAt">,
+  actorId: string,
+  actorName: string
+): User {
+  const users = getUsers();
+  if (users.some((u) => u.email === data.email)) {
+    throw new Error("Email already exists");
+  }
+  const user: User = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  };
+  users.push(user);
+  setInStorage(USERS_KEY, users);
+  addAuditLog({
+    action: "create",
+    entity: "user",
+    entityId: user.id,
+    userId: actorId,
+    userName: actorName,
+    description: `Created user ${user.name} (${user.role})`,
+  });
+  return user;
+}
+
+export function updateUser(
+  id: string,
+  data: Partial<Pick<User, "name" | "email" | "role" | "password">>,
+  actorId: string,
+  actorName: string
+): User | null {
+  const users = getUsers();
+  const index = users.findIndex((u) => u.id === id);
+  if (index === -1) return null;
+  if (data.email && users.some((u) => u.email === data.email && u.id !== id)) {
+    throw new Error("Email already exists");
+  }
+  users[index] = { ...users[index], ...data };
+  setInStorage(USERS_KEY, users);
+  addAuditLog({
+    action: "update",
+    entity: "user",
+    entityId: id,
+    userId: actorId,
+    userName: actorName,
+    description: `Updated user ${users[index].name}`,
+  });
+  return users[index];
+}
+
+export function deleteUser(
+  id: string,
+  actorId: string,
+  actorName: string
+): boolean {
+  const users = getUsers();
+  const user = users.find((u) => u.id === id);
+  if (!user) return false;
+  if (user.role === "admin" && users.filter((u) => u.role === "admin").length <= 1) {
+    throw new Error("Cannot delete the last admin user");
+  }
+  const session = getSession();
+  if (session?.userId === id) {
+    throw new Error("Cannot delete your own account while logged in");
+  }
+  setInStorage(USERS_KEY, users.filter((u) => u.id !== id));
+  addAuditLog({
+    action: "delete",
+    entity: "user",
+    entityId: id,
+    userId: actorId,
+    userName: actorName,
+    description: `Deleted user ${user.name}`,
+  });
+  return true;
+}
+
+export const USER_ROLES: UserRole[] = ["admin", "accountant", "hr"];

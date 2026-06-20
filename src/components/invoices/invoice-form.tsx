@@ -50,7 +50,7 @@ export function InvoiceForm({
   onCancel,
 }: InvoiceFormProps) {
   const clients = getClients();
-  const templates = getTemplates();
+  const templates = getTemplates().filter((t) => t.isActive);
 
   const [clientId, setClientId] = useState(initialValues?.clientId || "");
   const [templateId, setTemplateId] = useState(

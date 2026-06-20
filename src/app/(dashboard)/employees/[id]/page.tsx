@@ -2,10 +2,11 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getEmployeeById,
@@ -46,9 +47,14 @@ export default function EmployeeDetailPage({
           title={`${employee.firstName} ${employee.lastName}`}
           description={`${employee.position} · ${dept?.name}`}
         >
-          <Badge variant={employee.status === "active" ? "success" : "secondary"}>
-            {employee.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={employee.status === "active" ? "success" : "secondary"}>
+              {employee.status}
+            </Badge>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/employees/${id}/edit`}><Pencil className="h-4 w-4" /> Edit</Link>
+            </Button>
+          </div>
         </PageHeader>
 
         <Tabs defaultValue="profile">

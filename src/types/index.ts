@@ -61,6 +61,7 @@ export interface InvoiceHistoryEntry {
   action: string;
   timestamp: string;
   userId?: string;
+  userName?: string;
 }
 
 export interface InvoiceTemplate {

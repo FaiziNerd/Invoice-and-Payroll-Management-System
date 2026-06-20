@@ -1,11 +1,18 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { getTemplateById } from "@/lib/mock-db/templates";
+import { useRouter } from "next/navigation";
+import { getTemplateById, updateTemplate } from "@/lib/mock-db/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { TemplatePreview } from "@/components/designer/template-preview";
+import { useAuth } from "@/providers/auth-provider";
+import { toast } from "sonner";
+import { RoleGate } from "@/components/auth/role-gate";
+import type { TemplateBranding } from "@/types";
 
 export default function TemplatePreviewPage({
   params,
@@ -13,7 +20,9 @@ export default function TemplatePreviewPage({
   params: Promise<{ templateId: string }>;
 }) {
   const { templateId } = use(params);
-  const template = getTemplateById(templateId);
+  const router = useRouter();
+  const { session } = useAuth();
+  const [template, setTemplate] = useState(() => getTemplateById(templateId));
 
   if (!template) {
     return <p className="text-center py-20">Template not found</p>;
@@ -21,40 +30,61 @@ export default function TemplatePreviewPage({
 
   const { branding } = template;
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Preview: {template.name}</h1>
-        <Button variant="outline" asChild>
-          <Link href={`/designer/${template.id}`}>Back to Editor</Link>
-        </Button>
-      </div>
+  const handleActivate = () => {
+    if (!session) return;
+    const updated = updateTemplate(templateId, { isActive: true }, session.userId, session.name);
+    if (updated) {
+      setTemplate(updated);
+      toast.success("Template published and activated");
+      router.push("/designer");
+    }
+  };
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <p className="text-sm text-muted-foreground mb-2">Desktop Preview</p>
-          <Card>
-            <CardContent className="p-8">
-              <InvoicePreview branding={branding} />
-            </CardContent>
-          </Card>
+  return (
+    <RoleGate roles={["admin", "accountant"]}>
+      <div className="space-y-6">
+        <div className="flex flex-wrap justify-between items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Preview: {template.name}</h1>
+            <div className="flex gap-2 mt-1">
+              {!template.isActive && <Badge variant="secondary">Draft — review before publishing</Badge>}
+              {template.isActive && <Badge>Active</Badge>}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/designer/${template.id}`}>Back to Editor</Link>
+            </Button>
+            {!template.isActive && (
+              <Button onClick={handleActivate}>Activate Template</Button>
+            )}
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground mb-2">Mobile Preview</p>
-          <Card className="max-w-sm mx-auto">
-            <CardContent className="p-4">
-              <InvoicePreview branding={branding} compact />
-            </CardContent>
-          </Card>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Desktop Preview</p>
+            <Card>
+              <CardContent className="p-8">
+                <DetailedInvoicePreview branding={branding} />
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Mobile Preview</p>
+            <Card className="max-w-sm mx-auto">
+              <CardContent className="p-4">
+                <DetailedInvoicePreview branding={branding} compact />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </RoleGate>
   );
 }
 
-import type { TemplateBranding } from "@/types";
-
-function InvoicePreview({
+function DetailedInvoicePreview({
   branding,
   compact = false,
 }: {
@@ -63,25 +93,11 @@ function InvoicePreview({
 }) {
   return (
     <div style={{ fontFamily: branding.fontFamily }} className={compact ? "text-xs" : "text-sm"}>
-      <div
-        className="flex justify-between border-b-2 pb-4 mb-4"
-        style={{ borderColor: branding.primaryColor }}
-      >
-        <div>
-          {branding.sections.logo && branding.logo && (
-            <img src={branding.logo} alt="Logo" className={compact ? "h-6 mb-1" : "h-10 mb-2"} />
-          )}
-          <p className="font-bold" style={{ color: branding.primaryColor }}>
-            {branding.companyName}
-          </p>
-          <p className="text-muted-foreground">{branding.companyAddress}</p>
-        </div>
-        <p className="font-bold" style={{ color: branding.primaryColor }}>INVOICE</p>
-      </div>
-      <div className="mb-4">
+      <TemplatePreview branding={branding} compact={compact} />
+      <div className="mt-4">
         <p className="text-muted-foreground">Bill To: Sample Client</p>
       </div>
-      <table className="w-full">
+      <table className="w-full mt-2">
         <thead>
           <tr style={{ backgroundColor: branding.primaryColor }} className="text-white">
             <th className="p-1 text-left">Item</th>
@@ -96,9 +112,6 @@ function InvoicePreview({
       <div className="mt-4 text-right font-bold" style={{ color: branding.primaryColor }}>
         Total: {formatCurrency(7000)}
       </div>
-      {branding.sections.footer && (
-        <p className="mt-4 text-center text-muted-foreground">{branding.footerText}</p>
-      )}
     </div>
   );
 }

@@ -45,6 +45,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { QRCodeSVG } from "qrcode.react";
+import { getUserById } from "@/lib/mock-db/auth";
 import { addAuditLog } from "@/lib/audit";
 
 export default function InvoiceDetailPage({
@@ -73,6 +74,15 @@ export default function InvoiceDetailPage({
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/share/invoice/${invoice.shareToken}`
     : `/share/invoice/${invoice.shareToken}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  };
 
   const handleDownloadPDF = async () => {
     await downloadInvoicePDF(invoice, client, template);
@@ -214,7 +224,7 @@ export default function InvoiceDetailPage({
                   <div key={entry.id} className="border-l-2 border-primary pl-3">
                     <p className="text-sm font-medium">{entry.action}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(entry.timestamp).toLocaleString()}
+                      {entry.userName || (entry.userId ? getUserById(entry.userId)?.name : undefined) || "Unknown"} · {new Date(entry.timestamp).toLocaleString()}
                     </p>
                   </div>
                 ))}
@@ -247,6 +257,7 @@ export default function InvoiceDetailPage({
             <div className="flex flex-col items-center gap-4 py-4">
               <QRCodeSVG value={shareUrl} size={200} />
               <p className="text-sm text-muted-foreground break-all text-center">{shareUrl}</p>
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>Copy Link</Button>
             </div>
           </DialogContent>
         </Dialog>
