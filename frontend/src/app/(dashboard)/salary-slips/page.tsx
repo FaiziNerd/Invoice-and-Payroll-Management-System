@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { getSalarySlips } from "@/lib/repositories/salary-slips";
 import { getPayrollRuns } from "@/lib/repositories/payroll";
 import { getEmployeeById } from "@/lib/repositories/employees";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
@@ -21,11 +22,15 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 export default function SalarySlipsPage() {
   const [search, setSearch] = useState("");
-  const slips = useStorageData(() => getSalarySlips(), ["salary_slips"]);
-  const runs = useStorageData(
+  const { data: slips, isLoading: slipsLoading } = useStorageDataWithLoading(
+    () => getSalarySlips(),
+    ["salary_slips"]
+  );
+  const { data: runs, isLoading: runsLoading } = useStorageDataWithLoading(
     () => getPayrollRuns().filter((r) => r.status === "processed" || r.status === "paid"),
     ["payroll_runs"]
   );
+  const isLoading = slipsLoading || runsLoading;
 
   const filteredSlips = slips.filter((slip) => {
     const emp = getEmployeeById(slip.employeeId);
@@ -87,7 +92,9 @@ export default function SalarySlipsPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {filteredSlips.length === 0 && runsWithoutSlips.length === 0 ? (
+            {isLoading ? (
+              <CardGridSkeleton count={3} />
+            ) : filteredSlips.length === 0 && runsWithoutSlips.length === 0 ? (
               <EmptyState
                 icon="file"
                 title="No salary slips yet"

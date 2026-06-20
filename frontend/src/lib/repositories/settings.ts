@@ -13,7 +13,11 @@ const DEFAULT_SETTINGS: OrganizationSettings = {
 let settingsCache: OrganizationSettings = DEFAULT_SETTINGS;
 
 export async function loadSettingsFromApi(): Promise<OrganizationSettings> {
-  settingsCache = await apiGet<OrganizationSettings>("/api/settings");
+  try {
+    settingsCache = await apiGet<OrganizationSettings>("/api/settings");
+  } catch {
+    settingsCache = DEFAULT_SETTINGS;
+  }
   return settingsCache;
 }
 

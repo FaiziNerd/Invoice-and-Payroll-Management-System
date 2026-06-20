@@ -14,13 +14,13 @@ import { useClients } from "@/hooks/use-clients";
 import { getEmployees } from "@/lib/repositories/employees";
 import { getDepartments } from "@/lib/repositories/departments";
 import { computeInvoiceAging } from "@/lib/invoices/aging";
-import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
 import { KpiSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import {
   computeMoMChange,
   computeDepartmentPayroll,
-  generateAiInsights,
+  generateDashboardInsights,
   getCurrentAndPreviousMonth,
   getMonthTotals,
   monthKey,
@@ -91,7 +91,8 @@ export default function DashboardPage() {
   const { session, hasRole } = useAuth();
   const [reminderInvoice, setReminderInvoice] = useState<Invoice | null>(null);
 
-  const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
+  const companyReady = useCompanyDataReady();
+  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
   const payrollRuns = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
   const { clients } = useClients();
   const employees = useStorageData(() => getEmployees(), ["employees"]);
@@ -136,9 +137,9 @@ export default function DashboardPage() {
     [payrollRuns, employees, departments]
   );
 
-  const aiInsights = useMemo(
+  const dashboardInsights = useMemo(
     () =>
-      generateAiInsights(
+      generateDashboardInsights(
         invoices,
         clients,
         revenueMoM,
@@ -353,7 +354,7 @@ export default function DashboardPage() {
         </Button>
       </PageHeader>
 
-      {isLoading ? (
+      {!companyReady ? (
         <KpiSkeleton />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -436,13 +437,12 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                AI Insights
-                <span className="text-xs font-normal text-muted-foreground">(mock)</span>
+                Smart Summary
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
-                {aiInsights.map((insight) => (
+                {dashboardInsights.map((insight) => (
                   <li
                     key={insight.id}
                     className={`rounded-lg border px-4 py-3 text-sm ${

@@ -46,18 +46,9 @@ export function getAuditLogs(): AuditLog[] {
   return auditLogsCache;
 }
 
+/** @deprecated Audit entries are recorded server-side only. This is a no-op. */
 export async function addAuditLog(
-  log: Omit<AuditLog, "id" | "timestamp">
-): Promise<AuditLog> {
-  const res = await fetch("/api/audit-logs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(log),
-  });
-
-  const entry = await parseApi<AuditLog>(res);
-  auditLogsCache = [entry, ...auditLogsCache].slice(0, 500);
-  notifyDataChange("audit_logs");
-  return entry;
+  _log: Omit<AuditLog, "id" | "timestamp">
+): Promise<void> {
+  // Intentionally empty — see lib/server/record-audit-log.ts
 }

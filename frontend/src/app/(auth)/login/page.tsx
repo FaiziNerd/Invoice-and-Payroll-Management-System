@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { APP_NAME } from "@/lib/branding";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -47,7 +48,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
             IP
           </div>
-          <h1 className="text-2xl font-bold">DotCode IPMS</h1>
+          <h1 className="text-2xl font-bold">{APP_NAME}</h1>
           <p className="text-muted-foreground">Invoice &amp; Payroll Management</p>
         </div>
 

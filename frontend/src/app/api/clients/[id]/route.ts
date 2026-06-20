@@ -2,6 +2,7 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { updateClientSchema } from "@/lib/api/clients/schemas";
 import { clientFieldsToRow, rowToClient } from "@/lib/api/clients/mappers";
+import { recordAuditLog } from "@/lib/server/record-audit-log";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -35,7 +36,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -79,14 +80,38 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return fail("NOT_FOUND", "Client not found", 404);
   }
 
-  return ok(rowToClient(data));
+  const client = rowToClient(data);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await recordAuditLog(supabase, {
+    companyId,
+    userId: user.id,
+    userName: profile?.name ?? "User",
+    action: "update",
+    entity: "client",
+    entityId: client.id,
+    description: `Updated client ${client.name}`,
+  });
+
+  return ok(client);
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
+
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("name")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
 
   const { count, error: invoiceError } = await supabase
     .from("invoices")
@@ -121,6 +146,22 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (!data) {
     return fail("NOT_FOUND", "Client not found", 404);
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await recordAuditLog(supabase, {
+    companyId,
+    userId: user.id,
+    userName: profile?.name ?? "User",
+    action: "delete",
+    entity: "client",
+    entityId: id,
+    description: `Deleted client ${existing?.name ?? id}`,
+  });
 
   return ok({ deleted: true });
 }

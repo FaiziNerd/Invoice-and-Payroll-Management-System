@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { getEmployees, calculateNetPay } from "@/lib/repositories/employees";
 import { getDepartments } from "@/lib/repositories/departments";
-import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -27,7 +27,7 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const { data: employees, isLoading } = useStorageDataWithLoading(() => getEmployees(), ["employees"]);
-  const departments = useStorageData(() => getDepartments(), ["departments"]);
+  const { data: departments } = useStorageDataWithLoading(() => getDepartments(), ["departments"]);
 
   const isFiltered = search !== "" || deptFilter !== "all";
 

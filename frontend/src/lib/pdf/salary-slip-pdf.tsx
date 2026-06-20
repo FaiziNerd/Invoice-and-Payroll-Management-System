@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getDefaultTemplate } from "@/lib/repositories/templates";
 import { getDepartmentById } from "@/lib/repositories/departments";
 import { getOrganizationCompanyName } from "@/lib/repositories/settings";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 
 function getSalarySlipPrimaryColor(): string {
   return getDefaultTemplate()?.branding.primaryColor || "#2563eb";
@@ -64,7 +65,7 @@ const MONTHS = [
 ];
 
 function getSalarySlipCompanyName(): string {
-  return getOrganizationCompanyName() || getDefaultTemplate()?.branding.companyName || "DotCode Solutions";
+  return getOrganizationCompanyName() || getDefaultTemplate()?.branding.companyName || DEFAULT_COMPANY_PLACEHOLDER;
 }
 
 function getEmployeeDepartmentName(employee: Employee): string {

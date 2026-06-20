@@ -31,13 +31,14 @@ import { TemplatePreview } from "@/components/designer/template-preview";
 import { PublishFlowSteps } from "@/components/designer/publish-flow-steps";
 import { MobilePreviewFrame } from "@/components/designer/mobile-preview-frame";
 import type { TemplateBranding } from "@/types";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 
 const defaultBranding: TemplateBranding = {
   primaryColor: "#2563eb",
   secondaryColor: "#64748b",
   fontFamily: "Inter",
   sections: { logo: true, notes: true, paymentTerms: true, footer: true },
-  companyName: "DotCode Solutions",
+  companyName: DEFAULT_COMPANY_PLACEHOLDER,
   companyAddress: "123 Business Ave, Suite 100, New York, NY 10001",
   paymentTerms: "Payment due within 30 days.",
   footerText: "Thank you for your business!",

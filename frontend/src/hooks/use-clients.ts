@@ -1,26 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getClients, loadClientsFromApi } from "@/lib/repositories/clients";
+import { getClients } from "@/lib/repositories/clients";
 import { DATA_CHANGE_EVENT } from "@/lib/data/events";
 import { COMPANY_CHANGE_EVENT } from "@/lib/company/context";
 import { SESSION_REFRESH_EVENT } from "@/lib/auth/client";
+import { useCompanyDataReady } from "@/hooks/use-storage-data";
 import type { Client } from "@/types";
 
 export function useClients() {
+  const companyReady = useCompanyDataReady();
   const [clients, setClients] = useState<Client[]>(() => getClients());
-  const [isLoading, setIsLoading] = useState(true);
 
-  const reload = useCallback(async () => {
-    const data = await loadClientsFromApi();
-    setClients(data);
-    setIsLoading(false);
+  const syncFromCache = useCallback(() => {
+    setClients(getClients());
   }, []);
 
   useEffect(() => {
-    void reload();
+    syncFromCache();
     const onChange = () => {
-      void reload();
+      syncFromCache();
     };
     window.addEventListener(DATA_CHANGE_EVENT, onChange);
     window.addEventListener(COMPANY_CHANGE_EVENT, onChange);
@@ -30,7 +29,7 @@ export function useClients() {
       window.removeEventListener(COMPANY_CHANGE_EVENT, onChange);
       window.removeEventListener(SESSION_REFRESH_EVENT, onChange);
     };
-  }, [reload]);
+  }, [syncFromCache]);
 
-  return { clients, isLoading, reload };
+  return { clients, isLoading: !companyReady, reload: syncFromCache };
 }

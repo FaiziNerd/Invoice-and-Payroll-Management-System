@@ -1,5 +1,4 @@
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from "@/types";
-import { generateShareToken } from "@/lib/utils";
 import { notifyDataChange } from "@/lib/data/events";
 import { addAuditLog } from "@/lib/repositories/audit";
 
@@ -59,6 +58,21 @@ export async function loadInvoicesFromApi(): Promise<Invoice[]> {
   invoicesCache = await parseApi<Invoice[]>(res);
   notifyDataChange("invoices");
   return invoicesCache;
+}
+
+export async function resolveOverdueInvoicesFromApi(): Promise<number> {
+  const res = await fetch("/api/invoices/resolve-overdue", {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    return 0;
+  }
+  const json = (await res.json()) as ApiResult<{ promoted: number }>;
+  if (!json.success) {
+    return 0;
+  }
+  return json.data.promoted;
 }
 
 export function getInvoices(): Invoice[] {
@@ -152,7 +166,6 @@ export async function createInvoice(
     body: JSON.stringify({
       ...data,
       userName,
-      shareToken: generateShareToken(),
       historyAction: "Invoice created",
     }),
   });
@@ -289,23 +302,20 @@ export async function sendInvoiceEmail(
   clientEmail: string,
   mode: "send" | "resend" | "reminder"
 ): Promise<Invoice | null> {
-  const historyMessages: Record<typeof mode, string> = {
-    send: `Invoice sent to ${clientEmail} (mock)`,
-    resend: `Invoice resent to ${clientEmail} (mock)`,
-    reminder: `Payment reminder sent to ${clientEmail} (mock)`,
-  };
+  const res = await fetch(`/api/invoices/${id}/send-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ mode, userName }),
+  });
 
-  if (mode === "send") {
-    return updateInvoice(
-      id,
-      { status: "sent" },
-      userId,
-      userName,
-      historyMessages[mode]
-    );
-  }
+  if (res.status === 404) return null;
 
-  return updateInvoice(id, {}, userId, userName, historyMessages[mode]);
+  const invoice = await parseApi<Invoice>(res);
+  upsertInvoice(invoice);
+  notifyDataChange("invoices");
+
+  return invoice;
 }
 
 export function getInvoicesNeedingReminder(): Invoice[] {

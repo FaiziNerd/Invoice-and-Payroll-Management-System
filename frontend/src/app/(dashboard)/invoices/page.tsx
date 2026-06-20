@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { getInvoices } from "@/lib/repositories/invoices";
 import { useClients } from "@/hooks/use-clients";
-import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading, useCompanyDataReady } from "@/hooks/use-storage-data";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { TableSkeleton } from "@/components/shared/skeletons";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
@@ -49,8 +49,10 @@ export default function InvoicesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
 
-  const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
+  const companyReady = useCompanyDataReady();
+  const { data: invoices } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
   const { clients } = useClients();
+  const isLoading = !companyReady;
 
   const isFiltered =
     search !== "" ||

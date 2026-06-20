@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
-import { AiInvoiceGenerator } from "@/components/invoices/ai-invoice-generator";
+import { QuickDraftGenerator } from "@/components/invoices/quick-draft-generator";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/repositories/invoices";
 import { getDefaultTemplate } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
@@ -18,7 +18,7 @@ export default function NewInvoicePage() {
   const { session } = useAuth();
   const defaultTemplate = getDefaultTemplate();
   const [formKey, setFormKey] = useState(0);
-  const [aiValues, setAiValues] = useState<Partial<InvoiceFormValues> | undefined>();
+  const [draftValues, setDraftValues] = useState<Partial<InvoiceFormValues> | undefined>();
 
   const handleSubmit = async (values: InvoiceFormValues) => {
     if (!session || !values.clientId) {
@@ -52,8 +52,8 @@ export default function NewInvoicePage() {
     }
   };
 
-  const handleAiGenerated = (values: InvoiceFormValues, summary: string) => {
-    setAiValues(values);
+  const handleQuickDraftGenerated = (values: InvoiceFormValues, summary: string) => {
+    setDraftValues(values);
     setFormKey((k) => k + 1);
     toast.success(summary);
   };
@@ -68,10 +68,10 @@ export default function NewInvoicePage() {
           ]}
         />
         <PageHeader title="New Invoice" description="Create a new invoice" />
-        <AiInvoiceGenerator onGenerated={handleAiGenerated} />
+        <QuickDraftGenerator onGenerated={handleQuickDraftGenerated} />
         <InvoiceForm
           key={formKey}
-          initialValues={aiValues}
+          initialValues={draftValues}
           submitLabel="Create Invoice"
           onSubmit={handleSubmit}
           onCancel={() => router.back()}

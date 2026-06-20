@@ -38,7 +38,7 @@ export interface SignUpInput {
   mode: "create" | "join";
   companyName?: string;
   companySlug?: string;
-  joinSlug?: string;
+  inviteCode?: string;
 }
 
 export async function signUp(input: SignUpInput): Promise<Session | null> {

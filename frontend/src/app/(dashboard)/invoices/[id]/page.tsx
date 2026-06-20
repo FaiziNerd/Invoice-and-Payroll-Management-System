@@ -51,7 +51,7 @@ import { getTemplateById } from "@/lib/repositories/templates";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
 import type { EmailMode } from "@/lib/invoices/email";
-import { formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
+import { copyTextToClipboard, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -143,11 +143,11 @@ export default function InvoiceDetailPage({
 
   const handleCopyLink = async () => {
     if (!shareUrl) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
       setLinkCopied(true);
       toast.success("Link copied to clipboard");
-    } catch {
+    } else {
       toast.error("Failed to copy link");
     }
   };

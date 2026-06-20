@@ -2,6 +2,7 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { createTemplateSchema } from "@/lib/api/templates/schemas";
 import { rowToTemplate, templateFieldsToRow } from "@/lib/api/templates/mappers";
+import { ensureCompanyTemplates } from "@/lib/server/ensure-company-templates";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -12,6 +13,13 @@ export async function GET() {
   const result = await requireCompanyContext();
   if ("error" in result) return result.error;
   const { supabase, companyId } = result.ctx;
+
+  try {
+    await ensureCompanyTemplates(companyId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to seed templates";
+    return fail("INTERNAL_ERROR", message, 500);
+  }
 
   const { data, error } = await supabase
     .from("invoice_templates")

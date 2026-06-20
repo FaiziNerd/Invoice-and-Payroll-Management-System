@@ -23,6 +23,7 @@ import type { UserRole } from "@/types";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { APP_NAME } from "@/lib/branding";
 
 interface NavItem {
   label: string;
@@ -164,7 +165,7 @@ export function Sidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs">
               IP
             </div>
-            <span>DotCode IPMS</span>
+            <span>{APP_NAME}</span>
           </Link>
         </div>
         <NavContent />

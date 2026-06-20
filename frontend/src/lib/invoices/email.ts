@@ -1,68 +1,49 @@
 import type { Client, Invoice } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  buildInvoiceEmailContent,
+  buildInvoiceShareUrl,
+  type EmailMode,
+} from "@/lib/invoices/email-content";
 import { getOrganizationCompanyName } from "@/lib/repositories/settings";
 
-export type EmailMode = "send" | "resend" | "reminder";
+export type { EmailMode };
 
 export interface InvoiceEmailPreview {
   to: string;
   subject: string;
   body: string;
+  shareUrl: string;
 }
 
 export function buildInvoiceEmailPreview(
   invoice: Invoice,
   client: Client,
-  mode: EmailMode
+  mode: EmailMode,
+  origin?: string
 ): InvoiceEmailPreview {
-  const company = getOrganizationCompanyName();
-  const to = client.email;
+  const shareUrl = buildInvoiceShareUrl(
+    invoice.shareToken,
+    origin ?? (typeof window !== "undefined" ? window.location.origin : undefined)
+  );
 
-  if (mode === "reminder") {
-    return {
-      to,
-      subject: `Payment Reminder: Invoice ${invoice.invoiceNumber} from ${company}`,
-      body: [
-        `Dear ${client.name},`,
-        "",
-        `This is a friendly reminder that invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total)} was due on ${formatDate(invoice.dueDate)}.`,
-        "",
-        "Please arrange payment at your earliest convenience. If you have already paid, please disregard this message.",
-        "",
-        `Invoice summary:`,
-        `- Amount due: ${formatCurrency(invoice.total)}`,
-        `- Issue date: ${formatDate(invoice.issueDate)}`,
-        `- Due date: ${formatDate(invoice.dueDate)}`,
-        "",
-        "Thank you for your business.",
-        company,
-      ].join("\n"),
-    };
-  }
+  const content = buildInvoiceEmailContent({
+    invoiceNumber: invoice.invoiceNumber,
+    total: invoice.total,
+    issueDate: invoice.issueDate,
+    dueDate: invoice.dueDate,
+    notes: invoice.notes,
+    clientName: client.name,
+    clientEmail: client.email,
+    companyName: getOrganizationCompanyName() || "Your Company",
+    shareUrl,
+    mode,
+  });
 
-  const verb = mode === "resend" ? "resending" : "sending";
   return {
-    to,
-    subject: `Invoice ${invoice.invoiceNumber} from ${company}`,
-    body: [
-      `Dear ${client.name},`,
-      "",
-      `Please find attached invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total)}.`,
-      "",
-      `Issue date: ${formatDate(invoice.issueDate)}`,
-      `Due date: ${formatDate(invoice.dueDate)}`,
-      "",
-      invoice.notes ? `Notes: ${invoice.notes}` : "",
-      "",
-      "You can view and pay this invoice using the secure link included in this email.",
-      "",
-      `Thank you for your business.`,
-      company,
-      "",
-      `(Mock email — ${verb} locally, no message was actually delivered.)`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    to: content.to,
+    subject: content.subject,
+    body: content.text,
+    shareUrl,
   };
 }
 

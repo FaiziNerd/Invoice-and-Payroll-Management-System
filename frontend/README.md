@@ -1,6 +1,6 @@
-# Invoice & Payroll Management System
+# Invoice & Payroll Management System (IPMS)
 
-A multi-company **Invoice & Payroll Management Platform** built with Next.js 15, TypeScript, Tailwind CSS, and **Supabase** (PostgreSQL + Auth). Business data is stored in Supabase; the frontend uses repository facades that call REST API routes with company-scoped RLS.
+A multi-company **Invoice & Payroll Management Platform** built with **Next.js 15**, **TypeScript**, **Tailwind CSS**, and **Supabase** (PostgreSQL + Auth). Business data lives in Supabase; the Next.js app exposes company-scoped REST API routes that enforce row-level security.
 
 ## Getting Started
 
@@ -8,6 +8,7 @@ A multi-company **Invoice & Payroll Management Platform** built with Next.js 15,
 
 - Node.js 18+
 - npm
+- A Supabase project (URL + anon/service keys)
 
 ### Installation
 
@@ -16,34 +17,66 @@ From the repository root:
 ```bash
 cd frontend
 npm install
+cp .env.local.example .env.local   # set NEXT_PUBLIC_SUPABASE_URL, keys, etc.
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Environment
+Apply `supabase/schema.sql` in the Supabase SQL Editor. Use `migrate-multi-company.sql` only when upgrading an older database.
 
-Copy `.env.local.example` to `.env.local` and set your Supabase project URL and keys. Apply `supabase/schema.sql` (and `migrate-multi-company.sql` only if upgrading an older database) in the Supabase SQL Editor.
+### Email (invoice send)
+
+Set in `.env.local` (see `.env.local.example`):
+
+- `RESEND_API_KEY` — from [resend.com](https://resend.com)
+- `RESEND_FROM_EMAIL` — e.g. `onboarding@resend.dev` on the free tier
+- `NEXT_PUBLIC_APP_URL` — public app URL for share links in emails
+
+Invoice send only writes history and updates status **after** Resend accepts the message. On failure, the UI shows an error and no false "sent" entry is recorded.
 
 ### Auth
 
-Use `/signup` to create a company (admin) or `/login` for existing users. Admins can invite users at `/admin/users`. Roles: **admin**, **accountant**, **hr**.
+- **`/signup`** — create a new company (admin account)
+- **`/login`** — sign in with an existing Supabase-backed account
+- **`/admin/users`** — admins invite team members with single-use codes
+
+Roles: **admin**, **accountant**, **hr**.
+
+### Demo seed (live presentation)
+
+Re-run before every demo to reset a fully populated company:
+
+```bash
+cd frontend
+npm run seed:demo
+```
+
+**Credentials after seed:**
+
+| Field | Value |
+|-------|-------|
+| Email | `demo@ipms.app` |
+| Password | `DemoIPMS2026!` |
+| Company | Northstar Operations |
+
+The script wipes the previous demo company by slug, then seeds clients, invoices (including 2+ overdue for the aging chart), employees, a paid payroll run with salary slips, templates/branding, and audit log entries. Requires `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
 ---
 
 ## Demo Walkthrough
 
-1. **Landing page** — Visit `/` for the public marketing page, then click **Get Started** or **Sign in**.
-2. **Sign up / Login** — Create a company or sign in with your Supabase-backed account.
-3. **Multi-company (Admin)** — Use the company dropdown in the header to switch companies. Invoices, clients, employees, payroll, and settings are scoped per company.
-4. **Dashboard** — Review revenue, payroll, outstanding invoices, aging chart, MoM KPI badges, AI insights card, and payment-reminder widget.
-5. **Invoices** — Create, edit, send/resend emails, send payment reminders, download PDFs, and share via public link + QR code.
-6. **Designer** — Customize invoice templates (classic / modern / minimal themes) with branding colors and live preview.
+1. **Landing page** — Visit `/`, then **Get Started** or **Sign in**.
+2. **Sign up / Login** — Create a company or sign in.
+3. **Multi-company (Admin)** — Switch companies from the header dropdown. Data is scoped per company.
+4. **Dashboard** — Revenue, payroll, outstanding invoices, aging chart, MoM KPI badges, smart summary card, and payment-reminder widget.
+5. **Invoices** — Create, edit, send/resend emails, reminders, PDFs, and public share links + QR codes.
+6. **Designer** — Customize invoice templates (classic / modern / minimal) with branding and live preview.
 7. **Clients** — Manage client records (delete blocked when invoices exist).
-8. **Employees & Departments** — HR workflows with salary structures; delete guards when referenced in payroll.
-9. **Payroll** — Run monthly payroll, view reports, export CSV, generate salary slip PDFs.
-10. **Admin** — Manage users, organization settings (company name/address for PDFs), and audit activity log.
-11. **Public share** — Open `/share/invoice/[token]` from an invoice detail page to preview the client-facing view.
+8. **Employees & Departments** — HR workflows with salary structures.
+9. **Payroll** — Monthly runs, reports, CSV export, salary slip PDFs.
+10. **Admin** — Users, organization settings (company name/address for PDFs), audit log.
+11. **Public share** — `/share/invoice/[token]` for client-facing invoice views.
 
 ---
 
@@ -52,14 +85,14 @@ Use `/signup` to create a company (admin) or `/login` for existing users. Admins
 | Route | Access | Description |
 |-------|--------|-------------|
 | `/` | Public | Landing page |
-| `/login` | Public | Demo login |
-| `/dashboard` | Authenticated | Main dashboard & analytics |
+| `/login`, `/signup` | Public | Authentication |
+| `/dashboard` | Authenticated | Dashboard & analytics |
 | `/invoices` | Admin, Accountant | Invoice list |
-| `/invoices/new` | Admin, Accountant | Create invoice (+ AI mock generator) |
-| `/invoices/[id]` | Admin, Accountant | Invoice detail, PDF, email, share |
+| `/invoices/new` | Admin, Accountant | Create invoice (+ quick draft suggestions) |
+| `/invoices/[id]` | Admin, Accountant | Detail, PDF, email, share |
 | `/invoices/[id]/edit` | Admin, Accountant | Edit invoice |
 | `/clients` | Admin, Accountant | Client management |
-| `/designer` | Admin, Accountant | Invoice template list |
+| `/designer` | Admin, Accountant | Template list |
 | `/designer/[templateId]` | Admin, Accountant | Template editor |
 | `/designer/preview/[templateId]` | Admin, Accountant | Template preview |
 | `/employees` | Admin, HR | Employee list |
@@ -71,9 +104,9 @@ Use `/signup` to create a company (admin) or `/login` for existing users. Admins
 | `/payroll` | Admin, Accountant, HR | Payroll runs |
 | `/payroll/run` | Admin, Accountant, HR | Create payroll run |
 | `/payroll/[runId]` | Admin, Accountant, HR | Payroll run detail |
-| `/payroll/reports` | Admin, Accountant, HR | Payroll reports & charts |
+| `/payroll/reports` | Admin, Accountant, HR | Reports & charts |
 | `/salary-slips` | Admin, HR | Salary slip list |
-| `/salary-slips/[runId]` | Admin, HR | Slips for a run (bulk PDF ZIP) |
+| `/salary-slips/[runId]` | Admin, HR | Bulk PDF ZIP |
 | `/admin/users` | Admin | User management |
 | `/admin/settings` | Admin | Organization settings |
 | `/admin/activity` | Admin | Audit log |
@@ -81,124 +114,110 @@ Use `/signup` to create a company (admin) or `/login` for existing users. Admins
 
 ---
 
+## Architecture
+
+```
+Browser (Next.js App Router)
+    │
+    ├── Server Components / Client Components (dashboard UI)
+    │
+    └── /api/* route handlers  ──►  Supabase client (service role / user JWT)
+                                        │
+                                        └── PostgreSQL + RLS (company_id scoping)
+```
+
+- **Auth:** Supabase Auth with HTTP-only session cookies via `/api/auth/*`.
+- **Data:** Repository facades in `src/lib/repositories/` call `/api/*` routes; an in-memory cache keeps the UI reactive between mutations.
+- **Multi-company:** `company_id` on all business tables; admins switch active company via cookie + header dropdown.
+- **PDFs:** Generated client-side with `@react-pdf/renderer`, branded from organization settings and invoice templates.
+
+---
+
 ## Feature Checklist
 
-### Phase A — Core Platform
+### Core Platform
 
-- [x] Public landing page at `/`
-- [x] Demo authentication with role-based access (Admin, Accountant, HR)
+- [x] Public landing page
+- [x] Supabase authentication with role-based access (Admin, Accountant, HR)
 - [x] Protected dashboard layout with sidebar navigation
-- [x] Dark mode toggle
-- [x] Mobile-responsive layout
-- [x] `localStorage` mock DB with seed data on first load
+- [x] Dark mode toggle and mobile-responsive layout
 - [x] Audit logging for key actions
 
-### Phase B — Invoice Module
+### Invoice Module
 
 - [x] Invoice CRUD with status workflow (draft → sent → paid / overdue)
 - [x] Line items, tax calculation, invoice numbering
-- [x] PDF download
-- [x] Public share links + QR codes
-- [x] Mock email send on draft invoices
+- [x] PDF download, public share links + QR codes
+- [x] Email send / resend / payment reminders via Resend (share link in email)
 - [x] Invoice history timeline
+- [x] Quick draft suggestions (rule-based line-item helper on new invoice)
 
-### Phase C — Payroll & HR Module
+### Payroll & HR
 
-- [x] Client management
-- [x] Employee profiles with salary structures
-- [x] Department management
+- [x] Client, employee, and department management
 - [x] Monthly payroll runs with bonus/deductions
-- [x] Salary slip PDF generation (individual + bulk ZIP)
+- [x] Salary slip PDFs (individual + bulk ZIP)
 - [x] Payroll reports with charts and CSV export
-- [x] Employee salary history page
+- [x] Delete guards when records are referenced
 
-### Phase D — UX Polish
+### Analytics & Dashboard
 
-- [x] Delete guards (client with invoices, department with employees, employee in payroll)
-- [x] Shared `EmptyState` component on list and not-found views
-- [x] Salary slip PDF branding from template primary color
-- [x] `salary_slip` entity filter on Activity page
+- [x] Smart summary card (rule-based billing highlights)
+- [x] Month-over-month KPI badges
+- [x] Department payroll breakdown chart
+- [x] Invoice aging chart and dashboard CSV/ZIP export
 
-### Phase E — Bonus Mocks (Email & Reminders)
+### Multi-Company
 
-- [x] Payment reminders for sent/overdue invoices (mock)
-- [x] Dashboard widget for invoices needing reminders
-- [x] Resend invoice email for sent/overdue
-- [x] Email preview dialog with recipient, subject, body template
-- [x] Distinct history actions: sent, resent, reminder_sent
+- [x] Company entity with per-user memberships
+- [x] Company switcher in header (any user with 2+ companies)
+- [x] Company-scoped data with RLS — no cross-company leakage
 
-### Phase F — Bonus Mocks (AI & Analytics)
+### Designer & Settings
 
-- [x] AI Invoice Generator on new invoice page (rule-based mock, no API)
-- [x] AI Payroll Insights card on dashboard
-- [x] Month-over-month % on revenue, outstanding, payroll, and net margin KPIs
-- [x] Department payroll breakdown chart on dashboard
-- [x] Net margin trend (admin/accountant)
-- [x] Extended dashboard ZIP export (aging, analytics CSVs)
-
-### Phase G — Multi-Company
-
-- [x] `Company` entity with two seeded companies (DotCode Solutions, Acme Holdings)
-- [x] Company switcher in header (Admin only)
-- [x] Company-scoped storage for invoices, clients, employees, departments, payroll, settings, templates, audit logs
-- [x] Switching companies reloads scoped data without cross-company leakage
-
-### Phase H — Documentation
-
-- [x] README with feature checklist, demo walkthrough, routes, and credentials
-
-### Additional Features
-
-- [x] Custom Invoice Designer — branded templates (classic / modern / minimal)
-- [x] Organization settings — company name/address in PDFs
-- [x] Invoice aging chart on dashboard
-- [x] Dashboard CSV/ZIP export
-- [x] `useStorageData` hook for reactive localStorage reads
+- [x] Custom invoice templates (classic / modern / minimal)
+- [x] Organization settings — company name/address on PDFs
 
 ---
 
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router) + TypeScript
+- **Database & Auth:** Supabase (PostgreSQL + Auth + RLS)
 - **UI:** Tailwind CSS + shadcn/ui
 - **Charts:** Recharts
 - **PDF:** @react-pdf/renderer
-- **QR:** qrcode.react
-- **Theming:** next-themes
+- **State:** TanStack Query + Zustand repository cache
 
 ## Project Structure
 
 ```
 src/
   app/
-    (auth)/login/           # Public login & signup
+    (auth)/                 # Login & signup
     (dashboard)/            # Protected app routes
-    api/                    # REST routes → Supabase (company-scoped)
+    api/                    # REST routes → Supabase
     share/invoice/[token]   # Public invoice view
   components/
     layout/                 # Header, sidebar, company switcher
-    shared/                 # EmptyState, PageHeader, etc.
-  data/seed.ts              # Legacy stub (no demo seed on login)
-  hooks/use-storage-data.ts # Reactive data hook (DATA_CHANGE_EVENT)
+    invoices/               # Forms, quick-draft generator, PDF views
   lib/
-    auth/client.ts          # Session client
-    company/context.ts      # Active company id (localStorage)
-    repositories/           # API facades + in-memory cache
-    api/                    # Shared fetch helpers, Zod schemas
-  lib/pdf/                  # PDF generation
-  providers/                # Auth, theme, query providers
-  types/                    # TypeScript interfaces
+    auth/                   # Session client
+    repositories/           # API facades + cache
+    analytics/              # Dashboard metrics & smart summary
+    pdf/                    # PDF generation
+  providers/                # Auth, theme, query
 ```
 
 ## Scripts
 
 ```bash
-npm run dev      # Start development server
+npm run dev      # Development server
 npm run build    # Production build
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run start    # Production server
+npm run lint     # ESLint
 ```
 
 ## Notes
 
-Data persists in **Supabase**. On login, the auth provider preloads company data via `/api/*` routes. Row-level security enforces company isolation. New companies receive three default invoice templates on signup; existing companies may need templates seeded manually if the table is empty.
+New companies receive three default invoice templates on signup. Organization name and address from **Admin → Settings** appear on invoice and salary-slip PDFs when set.

@@ -1,7 +1,11 @@
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { fail } from "@/lib/api/response";
-import { ACTIVE_COMPANY_COOKIE, readActiveCompanyCookie } from "@/lib/auth/server-session";
+import {
+  ACTIVE_COMPANY_COOKIE,
+  readActiveCompanyCookie,
+  resolveActiveCompanyId,
+} from "@/lib/auth/server-session";
 import type { UserRole } from "@/types";
 
 export type CompanyContext = {
@@ -24,9 +28,14 @@ export async function requireCompanyContext(options?: {
   }
 
   const cookieStore = await import("next/headers").then((m) => m.cookies());
-  const companyId = readActiveCompanyCookie(
+  let companyId = readActiveCompanyCookie(
     cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value
   );
+
+  if (!companyId) {
+    companyId =
+      (await resolveActiveCompanyId(supabase, user.id, undefined)) ?? undefined;
+  }
 
   if (!companyId) {
     return { error: fail("VALIDATION_ERROR", "No active company selected", 400) };

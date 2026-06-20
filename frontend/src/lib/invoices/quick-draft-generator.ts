@@ -56,15 +56,16 @@ function inferDueDays(prompt: string): number {
   return 30;
 }
 
-export interface AiInvoiceDraft extends InvoiceFormValues {
-  aiSummary: string;
+export interface QuickDraftResult extends InvoiceFormValues {
+  summary: string;
 }
 
-export function generateMockAiInvoice(
+/** Rule-based invoice draft from a short description (keyword matching, not LLM). */
+export function generateQuickDraftInvoice(
   prompt: string,
   clients: Client[],
   defaultTemplateId: string
-): AiInvoiceDraft {
+): QuickDraftResult {
   const trimmed = prompt.trim();
   const items = matchServices(trimmed);
   const dueDays = inferDueDays(trimmed);
@@ -83,6 +84,6 @@ export function generateMockAiInvoice(
       ? `Generated from: "${trimmed.slice(0, 120)}${trimmed.length > 120 ? "…" : ""}"`
       : "",
     items,
-    aiSummary: `Suggested ${items.length} line item${items.length !== 1 ? "s" : ""} totaling ~${total.toLocaleString("en-US", { style: "currency", currency: "USD" })} with ${taxRate}% tax and Net ${dueDays} terms.`,
+    summary: `Suggested ${items.length} line item${items.length !== 1 ? "s" : ""} totaling ~${total.toLocaleString("en-US", { style: "currency", currency: "USD" })} with ${taxRate}% tax and Net ${dueDays} terms.`,
   };
 }

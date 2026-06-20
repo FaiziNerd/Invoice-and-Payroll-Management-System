@@ -4,8 +4,6 @@ import { updateInvoiceSchema } from "@/lib/api/invoices/schemas";
 import {
   calculateInvoiceTotals,
   normalizeLineItems,
-  OVERDUE_HISTORY_ACTION,
-  resolveOverdue,
 } from "@/lib/api/invoices/utils";
 import {
   rowToInvoice,
@@ -53,28 +51,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (error) return fail("INTERNAL_ERROR", error.message, 500);
   if (!data) return fail("NOT_FOUND", "Invoice not found", 404);
 
-  const invoice = mapInvoice(data as InvoiceWithRelations);
-  const resolved = resolveOverdue(invoice);
-  if (resolved) {
-    const timestamp = new Date().toISOString();
-    await Promise.all([
-      supabase
-        .from("invoices")
-        .update({ status: "overdue", updated_at: timestamp })
-        .eq("id", id)
-        .eq("company_id", companyId),
-      supabase.from("invoice_history").insert({
-        invoice_id: id,
-        action: OVERDUE_HISTORY_ACTION,
-        timestamp,
-        user_name: "System",
-        user_id: null,
-      }),
-    ]);
-    return ok(resolved);
-  }
-
-  return ok(invoice);
+  return ok(mapInvoice(data as InvoiceWithRelations));
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {

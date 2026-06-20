@@ -5,6 +5,7 @@ import type { Client, Invoice, InvoiceTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { getOrganizationAddress, getOrganizationCompanyName } from "@/lib/repositories/settings";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 
 type InvoiceTheme = InvoiceTemplate["theme"];
 
@@ -18,7 +19,7 @@ interface InvoiceThemeViewProps {
 
 function resolveCompany(template?: InvoiceTemplate) {
   return {
-    name: getOrganizationCompanyName() || template?.branding.companyName || "DotCode Solutions",
+    name: getOrganizationCompanyName() || template?.branding.companyName || DEFAULT_COMPANY_PLACEHOLDER,
     address: getOrganizationAddress() || template?.branding.companyAddress || "",
     primaryColor: template?.branding.primaryColor || "#2563eb",
     logo: template?.branding.logo,

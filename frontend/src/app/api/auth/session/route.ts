@@ -27,5 +27,16 @@ export async function GET() {
     return fail("NOT_FOUND", "Profile not found", 404);
   }
 
-  return ok(session);
+  const response = ok(session);
+  if (session.companyId) {
+    response.cookies.set(ACTIVE_COMPANY_COOKIE, session.companyId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  }
+
+  return response;
 }

@@ -42,6 +42,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
+import { copyTextToClipboard } from "@/lib/utils";
 import type { User, UserRole } from "@/types";
 
 interface UserForm {
@@ -52,6 +53,101 @@ interface UserForm {
 }
 
 const emptyForm: UserForm = { name: "", email: "", role: "accountant", password: "" };
+
+function InviteCodesCard() {
+  const [invites, setInvites] = useState<
+    Array<{ id: string; token: string; role: string; expires_at: string }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const loadInvites = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/invites", { credentials: "include" });
+      const json = await res.json();
+      if (json.success) setInvites(json.data ?? []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadInvites();
+  }, []);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ role: "accountant", expiresInDays: 7 }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Failed");
+      toast.success("Invite code generated");
+      await loadInvites();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate invite");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyInvite = async (token: string) => {
+    const link = `${window.location.origin}/signup?invite=${token}`;
+    const copied = await copyTextToClipboard(link);
+    if (copied) {
+      toast.success("Invite link copied");
+    } else {
+      toast.error("Could not copy — select and copy the code manually");
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="font-medium">Invite codes</h3>
+            <p className="text-sm text-muted-foreground">
+              Single-use codes for new team members. Share the link — slug-based joining is disabled.
+            </p>
+          </div>
+          <Button onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating..." : "Generate invite"}
+          </Button>
+        </div>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading invites...</p>
+        ) : invites.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active invite codes.</p>
+        ) : (
+          <div className="space-y-2">
+            {invites.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+              >
+                <div>
+                  <p className="font-mono text-xs break-all">{inv.token}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {inv.role} · expires {new Date(inv.expires_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => copyInvite(inv.token)}>
+                  Copy link
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function UsersPage() {
   const { session } = useAuth();
@@ -140,6 +236,8 @@ export default function UsersPage() {
             <Plus className="h-4 w-4" /> Add User
           </Button>
         </PageHeader>
+
+        <InviteCodesCard />
 
         <Card>
           <CardContent className="pt-6">

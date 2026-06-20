@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { signUp } from "@/lib/auth/client";
 import { slugify } from "@/lib/auth/slug";
@@ -13,18 +13,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-export default function SignUpPage() {
+function SignUpForm() {
+  const searchParams = useSearchParams();
+  const presetInvite = searchParams.get("invite") ?? "";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<"create" | "join">("create");
+  const [mode, setMode] = useState<"create" | "join">(presetInvite ? "join" : "create");
   const [companyName, setCompanyName] = useState("");
   const [companySlug, setCompanySlug] = useState("");
-  const [joinSlug, setJoinSlug] = useState("");
+  const [inviteCode, setInviteCode] = useState(presetInvite);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { refreshSession } = useAuth();
+
+  useEffect(() => {
+    if (presetInvite) {
+      setMode("join");
+      setInviteCode(presetInvite);
+    }
+  }, [presetInvite]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +46,7 @@ export default function SignUpPage() {
         mode,
         companyName: mode === "create" ? companyName : undefined,
         companySlug: mode === "create" ? companySlug || slugify(companyName) : undefined,
-        joinSlug: mode === "join" ? joinSlug : undefined,
+        inviteCode: mode === "join" ? inviteCode.trim() : undefined,
       });
       if (session) {
         await refreshSession();
@@ -168,16 +177,18 @@ export default function SignUpPage() {
                 </>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="joinSlug">Company slug</Label>
+                  <Label htmlFor="inviteCode">Invite code</Label>
                   <Input
-                    id="joinSlug"
-                    value={joinSlug}
-                    onChange={(e) => setJoinSlug(e.target.value)}
-                    placeholder="company-slug-from-admin"
+                    id="inviteCode"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.trim())}
+                    placeholder="Paste the invite code from your admin"
                     required
+                    minLength={32}
+                    className="font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Ask your company admin for the slug. You will join as an accountant.
+                    Ask your company admin for a single-use invite code. Slug-based joining is no longer supported.
                   </p>
                 </div>
               )}
@@ -197,5 +208,13 @@ export default function SignUpPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <SignUpForm />
+    </Suspense>
   );
 }

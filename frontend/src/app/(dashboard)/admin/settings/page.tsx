@@ -16,15 +16,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getSettings, updateSettings } from "@/lib/repositories/settings";
+import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
 import { getTemplates } from "@/lib/repositories/templates";
 import { useAuth } from "@/providers/auth-provider";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { session } = useAuth();
-  const settings = useStorageData(() => getSettings(), ["settings"]);
-  const templates = useStorageData(() => getTemplates(), ["templates"]);
+  const { data: settings, isLoading: settingsLoading } = useStorageDataWithLoading(
+    () => getSettings(),
+    ["settings"]
+  );
+  const { data: templates, isLoading: templatesLoading } = useStorageDataWithLoading(
+    () => getTemplates(),
+    ["templates"]
+  );
+  const isLoading = settingsLoading || templatesLoading;
 
   const [name, setName] = useState(settings.name);
   const [address, setAddress] = useState(settings.address);
@@ -62,6 +71,9 @@ export default function SettingsPage() {
           description="Company details used on invoices and salary slip PDFs"
         />
 
+        {isLoading ? (
+          <CardGridSkeleton count={1} />
+        ) : (
         <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle>Company Profile</CardTitle>
@@ -73,7 +85,7 @@ export default function SettingsPage() {
                 id="org-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="DotCode Solutions"
+                placeholder={DEFAULT_COMPANY_PLACEHOLDER}
               />
             </div>
             <div className="space-y-2">
@@ -106,6 +118,7 @@ export default function SettingsPage() {
             <Button onClick={handleSave}>Save Settings</Button>
           </CardContent>
         </Card>
+        )}
       </div>
     </RoleGate>
   );

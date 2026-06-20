@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:demo-fixes": "node scripts/test-demo-fixes.mjs",
+    "test:payroll-status": "node scripts/test-payroll-status.mjs",
+    "test:security-fixes": "node scripts/test-security-fixes.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "test:company-switcher": "node scripts/test-company-switcher.mjs",
+    "test:invoice-email": "node scripts/test-invoice-email.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

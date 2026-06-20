@@ -62,49 +62,10 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
-  const result = await requireCompanyContext();
-  if ("error" in result) return result.error;
-  const { supabase, companyId, user } = result.ctx;
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return fail("VALIDATION_ERROR", "Invalid JSON body", 400);
-  }
-
-  const input = body as {
-    action?: AuditAction;
-    entity?: string;
-    entityId?: string;
-    userName?: string;
-    description?: string;
-    metadata?: Record<string, unknown>;
-  };
-
-  if (!input.action || !input.entity || !input.description) {
-    return fail("VALIDATION_ERROR", "action, entity and description are required", 400);
-  }
-
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .insert({
-      company_id: companyId,
-      action: input.action,
-      entity: input.entity,
-      entity_id: input.entityId || null,
-      user_id: user.id,
-      user_name: input.userName || "User",
-      description: input.description,
-      metadata: input.metadata ?? null,
-    })
-    .select(
-      "id, action, entity, entity_id, user_id, user_name, description, metadata, timestamp"
-    )
-    .single();
-
-  if (error) return fail("INTERNAL_ERROR", error.message, 500);
-
-  return ok(rowToAuditLog(data as AuditLogRow), 201);
+export async function POST() {
+  return fail(
+    "FORBIDDEN",
+    "Audit logs are recorded server-side only and cannot be created from the client",
+    403
+  );
 }

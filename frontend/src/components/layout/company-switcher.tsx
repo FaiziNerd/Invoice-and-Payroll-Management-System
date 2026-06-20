@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 
 export function CompanySwitcher() {
-  const { session, hasRole } = useAuth();
+  const { session } = useAuth();
   const [companies, setCompanies] = useState(() => getCompanies());
   const [activeId, setActiveId] = useState(() => getActiveCompany().id);
 
@@ -30,7 +30,7 @@ export function CompanySwitcher() {
     });
   }, [session?.companyId]);
 
-  if (!hasRole("admin") || !session) {
+  if (!session) {
     return null;
   }
 

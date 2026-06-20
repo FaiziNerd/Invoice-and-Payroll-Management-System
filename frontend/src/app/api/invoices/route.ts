@@ -11,10 +11,9 @@ import {
 import {
   calculateInvoiceTotals,
   normalizeLineItems,
-  OVERDUE_HISTORY_ACTION,
-  resolveOverdue,
 } from "@/lib/api/invoices/utils";
-import { generateShareToken } from "@/lib/utils";
+import { generateSecureShareToken } from "@/lib/server/tokens";
+import { recordAuditLog } from "@/lib/server/record-audit-log";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -53,38 +52,7 @@ export async function GET() {
   }
 
   const invoices = ((data ?? []) as InvoiceWithRelations[]).map(mapInvoice);
-  const overdueUpdates = invoices
-    .map((invoice) => ({ invoice, resolved: resolveOverdue(invoice) }))
-    .filter((entry) => entry.resolved);
-
-  if (overdueUpdates.length > 0) {
-    await Promise.all(
-      overdueUpdates.map(async ({ invoice }) => {
-        const timestamp = new Date().toISOString();
-        await Promise.all([
-          supabase
-            .from("invoices")
-            .update({ status: "overdue", updated_at: timestamp })
-            .eq("id", invoice.id)
-            .eq("company_id", companyId),
-          supabase.from("invoice_history").insert({
-            invoice_id: invoice.id,
-            action: OVERDUE_HISTORY_ACTION,
-            timestamp,
-            user_name: "System",
-            user_id: null,
-          }),
-        ]);
-      })
-    );
-  }
-
-  return ok(
-    invoices.map((invoice) => {
-      const resolved = resolveOverdue(invoice);
-      return resolved ?? invoice;
-    })
-  );
+  return ok(invoices);
 }
 
 export async function POST(request: Request) {
@@ -110,7 +78,7 @@ export async function POST(request: Request) {
 
   const items = normalizeLineItems(parsed.data.items);
   const totals = calculateInvoiceTotals(items, parsed.data.taxRate);
-  const shareToken = generateShareToken();
+  const shareToken = generateSecureShareToken();
 
   const { data: invoiceRow, error: invoiceError } = await supabase
     .from("invoices")
@@ -172,12 +140,27 @@ export async function POST(request: Request) {
     return fail("INTERNAL_ERROR", historyError.message, 500);
   }
 
-  return ok(
-    rowToInvoice(
-      invoiceRow,
-      (itemRows ?? []) as InvoiceItemRow[],
-      (historyRows ?? []) as InvoiceHistoryRow[]
-    ),
-    201
+  const invoice = rowToInvoice(
+    invoiceRow,
+    (itemRows ?? []) as InvoiceItemRow[],
+    (historyRows ?? []) as InvoiceHistoryRow[]
   );
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await recordAuditLog(supabase, {
+    companyId,
+    userId: user.id,
+    userName: profile?.name ?? parsed.data.userName ?? "User",
+    action: "create",
+    entity: "invoice",
+    entityId: invoice.id,
+    description: `Created invoice ${invoice.invoiceNumber}`,
+  });
+
+  return ok(invoice, 201);
 }
