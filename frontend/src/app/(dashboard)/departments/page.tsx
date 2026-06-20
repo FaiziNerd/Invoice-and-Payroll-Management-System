@@ -31,7 +31,8 @@ import {
   updateDepartment,
   deleteDepartment,
 } from "@/lib/mock-db/departments";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -39,7 +40,7 @@ import type { Department } from "@/types";
 
 export default function DepartmentsPage() {
   const { session } = useAuth();
-  const departments = useStorageData(() => getDepartments(), ["departments"]);
+  const { data: departments, isLoading } = useStorageDataWithLoading(() => getDepartments(), ["departments"]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const [editing, setEditing] = useState<Department | null>(null);
@@ -100,7 +101,9 @@ export default function DepartmentsPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {departments.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton rows={4} cols={3} />
+            ) : departments.length === 0 ? (
               <EmptyState
                 icon="inbox"
                 title="No departments yet"

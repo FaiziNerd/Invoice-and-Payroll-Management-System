@@ -18,14 +18,15 @@ import {
 } from "@/components/ui/select";
 import { getEmployees, calculateNetPay } from "@/lib/mock-db/employees";
 import { getDepartments } from "@/lib/mock-db/departments";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
-  const employees = useStorageData(() => getEmployees(), ["employees"]);
+  const { data: employees, isLoading } = useStorageDataWithLoading(() => getEmployees(), ["employees"]);
   const departments = useStorageData(() => getDepartments(), ["departments"]);
 
   const isFiltered = search !== "" || deptFilter !== "all";
@@ -85,7 +86,10 @@ export default function EmployeesPage() {
           </p>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {isLoading ? (
+          <CardGridSkeleton count={6} />
+        ) : null}
+        <div className={isLoading ? "hidden" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
           {employees.length === 0 ? (
             <div className="col-span-full">
               <EmptyState

@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/select";
 import { getInvoices } from "@/lib/mock-db/invoices";
 import { getClients } from "@/lib/mock-db/clients";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -48,7 +49,7 @@ export default function InvoicesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
 
-  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
+  const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
   const clients = useStorageData(() => getClients(), ["clients"]);
 
   const isFiltered =
@@ -185,7 +186,9 @@ export default function InvoicesPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {invoices.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton rows={5} cols={6} />
+            ) : invoices.length === 0 ? (
               <EmptyState
                 icon="file"
                 title="No invoices yet"

@@ -16,10 +16,10 @@ const payrollStatusMap: Record<PayrollStatus, { label: string; variant: "default
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
   const config = invoiceStatusMap[status];
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <Badge role="status" variant={config.variant}>{config.label}</Badge>;
 }
 
 export function PayrollStatusBadge({ status }: { status: PayrollStatus }) {
   const config = payrollStatusMap[status];
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <Badge role="status" variant={config.variant}>{config.label}</Badge>;
 }

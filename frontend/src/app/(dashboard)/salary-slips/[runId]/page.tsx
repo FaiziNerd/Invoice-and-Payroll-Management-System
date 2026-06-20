@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Download, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPayrollRunById } from "@/lib/mock-db/payroll";
@@ -103,6 +104,12 @@ export default function SalarySlipsRunPage({
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Salary Slips", href: "/salary-slips" },
+            { label: `${MONTHS[run.month - 1]} ${run.year}` },
+          ]}
+        />
         <PageHeader
           title={`Salary Slips — ${MONTHS[run.month - 1]} ${run.year}`}
           description={`${run.entries.length} employees`}
@@ -155,7 +162,7 @@ export default function SalarySlipsRunPage({
                         </p>
                         <div className="mt-1 flex gap-4 text-sm">
                           <span>Gross: {formatCurrency(slip.grossPay)}</span>
-                          <span className="font-semibold text-emerald-600">
+                          <span className="font-semibold text-green-600 dark:text-green-400">
                             Net: {formatCurrency(slip.netPay)}
                           </span>
                         </div>

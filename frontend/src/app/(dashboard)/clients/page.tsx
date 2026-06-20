@@ -30,7 +30,8 @@ import {
   updateClient,
   deleteClient,
 } from "@/lib/mock-db/clients";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -44,7 +45,7 @@ type SortDir = "asc" | "desc";
 
 export default function ClientsPage() {
   const { session } = useAuth();
-  const clients = useStorageData(() => getClients(), ["clients"]);
+  const { data: clients, isLoading } = useStorageDataWithLoading(() => getClients(), ["clients"]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -133,7 +134,9 @@ export default function ClientsPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {clients.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton rows={5} cols={5} />
+            ) : clients.length === 0 ? (
               <EmptyState
                 icon="users"
                 title="No clients yet"

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Pencil, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +73,12 @@ export default function EmployeeDetailPage({
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Employees", href: "/employees" },
+            { label: `${employee.firstName} ${employee.lastName}` },
+          ]}
+        />
         <PageHeader
           title={`${employee.firstName} ${employee.lastName}`}
           description={`${employee.position} · ${dept?.name}`}
@@ -123,7 +130,7 @@ export default function EmployeeDetailPage({
               </Card>
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Net Pay</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(net)}</p></CardContent>
+                <CardContent><p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(net)}</p></CardContent>
               </Card>
             </div>
             <Card className="mt-4">

@@ -42,3 +42,17 @@ export function useStorageData<T>(
 
   return getter();
 }
+
+export function useStorageDataWithLoading<T>(
+  getter: () => T,
+  storageKeys?: string[]
+): { data: T; isLoading: boolean } {
+  const [isLoading, setIsLoading] = useState(true);
+  const data = useStorageData(getter, storageKeys);
+
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
+
+  return { data, isLoading };
+}

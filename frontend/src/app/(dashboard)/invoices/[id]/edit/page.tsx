@@ -4,6 +4,7 @@ import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm, invoiceToFormValues } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { getInvoiceById, updateInvoice } from "@/lib/mock-db/invoices";
@@ -85,6 +86,13 @@ export default function EditInvoicePage({
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Invoices", href: "/invoices" },
+            { label: invoice.invoiceNumber, href: `/invoices/${id}` },
+            { label: "Edit" },
+          ]}
+        />
         <PageHeader
           title={`Edit ${invoice.invoiceNumber}`}
           description="Update invoice details and line items"

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,6 +131,12 @@ export default function TemplateEditorPage({
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Templates", href: "/designer" },
+            { label: isNew ? "New Template" : name },
+          ]}
+        />
         <PageHeader title={isNew ? "New Template" : `Edit: ${name}`}>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => router.push("/designer")}>Back</Button>
