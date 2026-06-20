@@ -8,9 +8,85 @@ import type {
   Employee,
   Invoice,
   OrganizationSettings,
+  PayrollEntry,
+  PayrollRun,
+  SalarySlip,
 } from "@/types";
 
 const SEEDED_KEY = "seeded";
+
+function buildPayrollEntry(employee: Employee, overrides?: {bonus?: number; oneOffDeduction?: number}): PayrollEntry {
+  const { baseSalary, allowances, deductions } = employee.salaryStructure;
+  const allowanceTotal = allowances.reduce((s, a) => s + a.amount, 0);
+  const deductionTotal = deductions.reduce((s, d) => s + d.amount, 0);
+  const bonus = overrides?.bonus ?? 0;
+  const oneOffDeduction = overrides?.oneOffDeduction ?? 0;
+  const grossPay = baseSalary + allowanceTotal + bonus;
+  const totalDeductions = deductionTotal + oneOffDeduction;
+  const netPay = grossPay - totalDeductions;
+  return {
+    id: generateId(),
+    employeeId: employee.id,
+    baseSalary,
+    allowances,
+    deductions,
+    bonus,
+    oneOffDeduction,
+    grossPay,
+    totalDeductions,
+    netPay,
+  };
+}
+
+function monthYearOffset(base: Date, offsetMonths: number): { month: number; year: number } {
+  const d = new Date(base.getFullYear(), base.getMonth() - offsetMonths, 1);
+  return { month: d.getMonth() + 1, year: d.getFullYear() };
+}
+
+function buildPayrollRun(
+  employees: Employee[],
+  month: number,
+  year: number,
+  status: PayrollRun["status"],
+  createdAt: string,
+  processedAt?: string
+): PayrollRun {
+  const entries = employees.map((emp, i) =>
+    buildPayrollEntry(emp, i === 0 && status !== "draft" ? {bonus: 500} : undefined)
+  );
+  const totalGross = entries.reduce((s, e) => s + e.grossPay, 0);
+  const totalNet = entries.reduce((s, e) => s + e.netPay, 0);
+  return {
+    id: generateId(),
+    month,
+    year,
+    status,
+    entries,
+    totalGross,
+    totalNet,
+    processedAt,
+    createdAt,
+  };
+}
+
+function buildSalarySlips(run: PayrollRun, generatedAt: string): SalarySlip[] {
+  return run.entries.map((entry) => ({
+    id: generateId(),
+    payrollRunId: run.id,
+    employeeId: entry.employeeId,
+    month: run.month,
+    year: run.year,
+    baseSalary: entry.baseSalary,
+    allowances: entry.allowances,
+    deductions: entry.deductions,
+   bonus: entry.bonus,
+    oneOffDeduction: entry.oneOffDeduction,
+    grossPay: entry.grossPay,
+    totalDeductions: entry.totalDeductions,
+    netPay: entry.netPay,
+    generatedAt,
+  }));
+}
 
 export function initializeSeedData(): void {
   if (typeof window === "undefined") return;
@@ -292,6 +368,33 @@ export function initializeSeedData(): void {
     defaultTemplateId: defaultTemplate?.id || "",
   };
   setInStorage("settings", settings);
+
+  const runConfigs: {
+    offset: number;
+    status: PayrollRun["status"];
+    processedDaysAgo?: number;
+  }[] = [
+    { offset: 3, status: "paid", processedDaysAgo: 85 },
+    { offset: 2, status: "paid", processedDaysAgo: 55 },
+    { offset: 1, status: "processed", processedDaysAgo: 25 },
+  ];
+
+  const payrollRuns: PayrollRun[] = runConfigs.map(({ offset, status, processedDaysAgo = 30 + offset * 10}) => {
+    const { month, year } = monthYearOffset(now, offset);
+    const createdAt = new Date(now.getFullYear(), now.getMonth() - offset, 5).toISOString();
+    const processedAt =
+      status !== "draft"
+        ? new Date(Date.now() - processedDaysAgo * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+    return buildPayrollRun(employees, month, year, status, createdAt, processedAt);
+  });
+  setInStorage("payroll_runs", payrollRuns);
+
+  const salarySlips: SalarySlip[] = payrollRuns.flatMap((run) => {
+    const generatedAt = run.processedAt ?? run.createdAt;
+    return buildSalarySlips(run, generatedAt);
+  });
+  setInStorage("salary_slips", salarySlips);
 
   setInStorage(SEEDED_KEY, true);
 }

@@ -25,7 +25,7 @@ export function RoleGate({ roles, children, fallback }: RoleGateProps) {
             You don&apos;t have permission to view this page.
           </p>
           <Button asChild className="mt-4">
-            <Link href="/">Go to Dashboard</Link>
+            <Link href="/dashboard">Go to Dashboard</Link>
           </Button>
         </div>
       )

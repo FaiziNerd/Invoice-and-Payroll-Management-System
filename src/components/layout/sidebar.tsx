@@ -30,7 +30,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "accountant", "hr"] },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "accountant", "hr"] },
   { label: "Invoices", href: "/invoices", icon: FileText, roles: ["admin", "accountant"] },
   { label: "Clients", href: "/clients", icon: Users, roles: ["admin", "accountant"] },
   { label: "Designer", href: "/designer", icon: Palette, roles: ["admin", "accountant"] },
@@ -53,7 +53,7 @@ export function Sidebar() {
     <nav className="flex flex-col gap-1 p-4">
       {filtered.map((item) => {
         const Icon = item.icon;
-        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
         return (
           <Link
             key={item.href}
@@ -99,7 +99,7 @@ export function Sidebar() {
         )}
       >
         <div className="flex h-14 items-center border-b px-6">
-          <Link href="/" className="flex items-center gap-2 font-bold">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs">
               IP
             </div>
