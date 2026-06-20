@@ -22,10 +22,11 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { FileText, DollarSign, AlertTriangle, Users, TrendingUp } from "lucide-react";
+import { FileText, DollarSign, AlertTriangle, Users, TrendingUp, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { exportToCSV } from "@/lib/csv";
+import { exportToCSV, generateCSV } from "@/lib/csv";
 import { addAuditLog } from "@/lib/audit";
+import JSZip from "jszip";
 import {
   Table,
   TableBody,
@@ -38,6 +39,14 @@ import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import Link from "next/link";
 
 const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444"];
+
+function ChartPlaceholder({ message }: { message: string }) {
+  return (
+    <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { session, hasRole } = useAuth();
@@ -77,7 +86,7 @@ export default function DashboardPage() {
     { name: "Sent", value: sentInvoices.length },
     { name: "Overdue", value: overdueInvoices.length },
     { name: "Draft", value: invoices.filter((i) => i.status === "draft").length },
-  ].filter((d) => d.value > 0);
+  ];
 
   const payrollTrend = payrollRuns
     .slice(0, 6)
@@ -86,6 +95,10 @@ export default function DashboardPage() {
       month: `${r.month}/${r.year}`,
       expense: r.totalNet,
     }));
+
+  const showInvoiceWidgets = hasRole("admin", "accountant");
+  const showPayrollWidgets = hasRole("admin", "hr", "accountant");
+  const showNetMargin = showInvoiceWidgets && showPayrollWidgets;
 
   const handleExportOutstanding = () => {
     const data = [...overdueInvoices, ...sentInvoices].map((inv) => {
@@ -116,15 +129,110 @@ export default function DashboardPage() {
     }
   };
 
-  const showInvoiceWidgets = hasRole("admin", "accountant");
-  const showPayrollWidgets = hasRole("admin", "hr", "accountant");
+  const handleExportDashboard = async () => {
+    const zip = new JSZip();
+
+    const summaryRows: { metric: string; value: string }[] = [];
+    if (showInvoiceWidgets) {
+      summaryRows.push(
+        { metric: "Total Revenue", value: String(totalRevenue) },
+        { metric: "Outstanding", value: String(outstanding) },
+      );
+    }
+    if (showPayrollWidgets) {
+      summaryRows.push({ metric: "Payroll Expense", value: String(totalPayroll) });
+    }
+    if (showNetMargin) {
+      summaryRows.push({ metric: "Net Margin", value: String(totalRevenue - totalPayroll) });
+    }
+    if (summaryRows.length > 0) {
+      zip.file(
+        "summary.csv",
+        generateCSV(summaryRows, [
+          { key: "metric", label: "Metric" },
+          { key: "value", label: "Value" },
+        ])
+      );
+    }
+
+    if (showInvoiceWidgets) {
+      zip.file(
+        "revenue-by-month.csv",
+        generateCSV(revenueByMonth, [
+          { key: "month", label: "Month" },
+          { key: "revenue", label: "Revenue" },
+        ])
+      );
+      zip.file(
+        "invoice-status.csv",
+        generateCSV(invoiceStatusData, [
+          { key: "name", label: "Status" },
+          { key: "value", label: "Count" },
+        ])
+      );
+      zip.file(
+        "outstanding-payments.csv",
+        generateCSV(
+          [...overdueInvoices, ...sentInvoices].map((inv) => {
+            const client = clients.find((c) => c.id === inv.clientId);
+            return {
+              invoiceNumber: inv.invoiceNumber,
+              client: client?.name || "Unknown",
+              amount: inv.total,
+              status: inv.status,
+              dueDate: inv.dueDate,
+            };
+          }),
+          [
+            { key: "invoiceNumber", label: "Invoice" },
+            { key: "client", label: "Client" },
+            { key: "amount", label: "Amount" },
+            { key: "status", label: "Status" },
+            { key: "dueDate", label: "Due Date" },
+          ]
+        )
+      );
+    }
+
+    if (showPayrollWidgets) {
+      zip.file(
+        "payroll-trend.csv",
+        generateCSV(payrollTrend, [
+          { key: "month", label: "Month" },
+          { key: "expense", label: "Expense" },
+        ])
+      );
+    }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dashboard-export.zip";
+    link.click();
+    URL.revokeObjectURL(url);
+
+    if (session) {
+      addAuditLog({
+        action: "export",
+        entity: "dashboard",
+        userId: session.userId,
+        userName: session.name,
+        description: "Exported full dashboard data",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         description="Financial overview and analytics"
-      />
+      >
+        <Button variant="outline" onClick={handleExportDashboard}>
+          <Download className="h-4 w-4" /> Export Dashboard
+        </Button>
+      </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {showInvoiceWidgets && (
@@ -165,83 +273,97 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(totalRevenue - totalPayroll)}
-            </div>
-            <p className="text-xs text-muted-foreground">Revenue minus payroll</p>
-          </CardContent>
-        </Card>
+        {showNetMargin && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(totalRevenue - totalPayroll)}
+              </div>
+              <p className="text-xs text-muted-foreground">Revenue minus payroll</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {showInvoiceWidgets && revenueByMonth.length > 0 && (
+        {showInvoiceWidgets && (
           <Card>
             <CardHeader>
               <CardTitle>Revenue Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={revenueByMonth}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {revenueByMonth.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={revenueByMonth}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartPlaceholder message="No revenue data yet" />
+              )}
             </CardContent>
           </Card>
         )}
 
-        {showInvoiceWidgets && invoiceStatusData.length > 0 && (
+        {showInvoiceWidgets && (
           <Card>
             <CardHeader>
               <CardTitle>Invoice Analytics</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={invoiceStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {invoiceStatusData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {invoiceStatusData.some((d) => d.value > 0) ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={invoiceStatusData.filter((d) => d.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                    >
+                      {invoiceStatusData.filter((d) => d.value > 0).map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartPlaceholder message="No invoice data yet" />
+              )}
             </CardContent>
           </Card>
         )}
 
-        {showPayrollWidgets && payrollTrend.length > 0 && (
+        {showPayrollWidgets && (
           <Card>
             <CardHeader>
               <CardTitle>Payroll Expense Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={payrollTrend}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Line type="monotone" dataKey="expense" stroke="#7c3aed" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
+              {payrollTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={payrollTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Line type="monotone" dataKey="expense" stroke="#7c3aed" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartPlaceholder message="No payroll data yet" />
+              )}
             </CardContent>
           </Card>
         )}

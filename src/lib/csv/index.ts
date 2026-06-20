@@ -1,8 +1,7 @@
-export function exportToCSV<T extends Record<string, unknown>>(
+export function generateCSV<T extends Record<string, unknown>>(
   data: T[],
-  columns: { key: keyof T; label: string }[],
-  filename: string
-): void {
+  columns: { key: keyof T; label: string }[]
+): string {
   const header = columns.map((c) => c.label).join(",");
   const rows = data.map((row) =>
     columns
@@ -13,7 +12,15 @@ export function exportToCSV<T extends Record<string, unknown>>(
       })
       .join(",")
   );
-  const csv = [header, ...rows].join("\n");
+  return [header, ...rows].join("\n");
+}
+
+export function exportToCSV<T extends Record<string, unknown>>(
+  data: T[],
+  columns: { key: keyof T; label: string }[],
+  filename: string
+): void {
+  const csv = generateCSV(data, columns);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
