@@ -211,9 +211,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-zinc-900 py-12 text-zinc-100 dark:bg-zinc-950">
+      <section className="bg-foreground py-12 text-background">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="mb-6 text-center text-sm font-medium uppercase tracking-wider text-zinc-400">
+          <p className="mb-6 text-center text-sm font-medium uppercase tracking-wider opacity-60">
             Bonus Features
           </p>
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
@@ -221,7 +221,7 @@ export default function LandingPage() {
               const Icon = feat.icon;
               return (
                 <div key={feat.label} className="flex items-center gap-2 text-sm">
-                  <Icon className="h-4 w-4 text-blue-400" />
+                  <Icon className="h-4 w-4 text-primary" />
                   <span>{feat.label}</span>
                 </div>
               );

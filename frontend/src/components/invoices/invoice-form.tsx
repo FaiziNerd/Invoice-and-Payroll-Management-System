@@ -114,12 +114,12 @@ export function InvoiceForm({
         <CardHeader><CardTitle>Invoice Details</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Client</Label>
+            <Label htmlFor="inv-client">Client</Label>
             <Select
               value={clientId}
               onValueChange={(v) => { setClientId(v); setClientError(""); }}
             >
-              <SelectTrigger className={clientError ? "border-destructive" : ""}>
+              <SelectTrigger id="inv-client" className={clientError ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select client" />
               </SelectTrigger>
               <SelectContent>
@@ -135,9 +135,9 @@ export function InvoiceForm({
             )}
           </div>
           <div className="space-y-2">
-            <Label>Template</Label>
+            <Label htmlFor="inv-template">Template</Label>
             <Select value={templateId} onValueChange={setTemplateId}>
-              <SelectTrigger><SelectValue placeholder="Select template" /></SelectTrigger>
+              <SelectTrigger id="inv-template"><SelectValue placeholder="Select template" /></SelectTrigger>
               <SelectContent>
                 {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -146,12 +146,12 @@ export function InvoiceForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Due Date</Label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Label htmlFor="inv-due-date">Due Date</Label>
+            <Input id="inv-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Tax Rate (%)</Label>
-            <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+            <Label htmlFor="inv-tax-rate">Tax Rate (%)</Label>
+            <Input id="inv-tax-rate" type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
           </div>
         </CardContent>
       </Card>
@@ -172,32 +172,35 @@ export function InvoiceForm({
           {items.map((item) => (
             <div key={item.id} className="grid gap-3 sm:grid-cols-12 items-end">
               <div className="sm:col-span-5 space-y-1">
-                <Label>Description</Label>
+                <Label htmlFor={`item-${item.id}-desc`}>Description</Label>
                 <Input
+                  id={`item-${item.id}-desc`}
                   value={item.description}
                   onChange={(e) => updateItem(item.id, "description", e.target.value)}
                   placeholder="Service description"
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Qty</Label>
+                <Label htmlFor={`item-${item.id}-qty`}>Qty</Label>
                 <Input
+                  id={`item-${item.id}-qty`}
                   type="number"
                   value={item.quantity}
                   onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Price</Label>
+                <Label htmlFor={`item-${item.id}-price`}>Price</Label>
                 <Input
+                  id={`item-${item.id}-price`}
                   type="number"
                   value={item.unitPrice}
                   onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">
-                <Label>Amount</Label>
-                <Input value={item.amount.toFixed(2)} readOnly />
+                <Label htmlFor={`item-${item.id}-amount`}>Amount</Label>
+                <Input id={`item-${item.id}-amount`} value={item.amount.toFixed(2)} readOnly />
               </div>
               <div className="sm:col-span-1">
                 <Button
@@ -218,8 +221,8 @@ export function InvoiceForm({
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-2">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
+            <Label htmlFor="inv-notes">Notes</Label>
+            <Textarea id="inv-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
           </div>
         </CardContent>
       </Card>

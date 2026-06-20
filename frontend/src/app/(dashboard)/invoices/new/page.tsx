@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { AiInvoiceGenerator } from "@/components/invoices/ai-invoice-generator";
@@ -56,6 +57,12 @@ export default function NewInvoicePage() {
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Invoices", href: "/invoices" },
+            { label: "New Invoice" },
+          ]}
+        />
         <PageHeader title="New Invoice" description="Create a new invoice" />
         <AiInvoiceGenerator onGenerated={handleAiGenerated} />
         <InvoiceForm

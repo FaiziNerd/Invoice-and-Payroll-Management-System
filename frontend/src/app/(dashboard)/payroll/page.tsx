@@ -16,7 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getPayrollRuns } from "@/lib/mock-db/payroll";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { TableSkeleton } from "@/components/shared/skeletons";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { DataTablePagination } from "@/components/shared/data-table-pagination";
 import { formatCurrency } from "@/lib/utils";
@@ -29,7 +30,7 @@ type SortField = "period" | "grossPay" | null;
 type SortDir = "asc" | "desc";
 
 export default function PayrollPage() {
-  const runs = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
+  const { data: runs, isLoading } = useStorageDataWithLoading(() => getPayrollRuns(), ["payroll_runs"]);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
@@ -79,7 +80,9 @@ export default function PayrollPage() {
 
         <Card>
           <CardContent className="pt-6">
-            {runs.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton rows={5} cols={5} />
+            ) : runs.length === 0 ? (
               <EmptyState
                 icon="file"
                 title="No payroll runs yet"

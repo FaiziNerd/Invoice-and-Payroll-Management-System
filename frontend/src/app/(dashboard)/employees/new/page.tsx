@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,6 +89,12 @@ export default function NewEmployeePage() {
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Employees", href: "/employees" },
+            { label: "New Employee" },
+          ]}
+        />
         <PageHeader title="Add Employee" description="Create a new employee profile" />
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -208,8 +215,9 @@ export default function NewEmployeePage() {
             <CardHeader><CardTitle>Salary Structure</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Base Salary</Label>
+                <Label htmlFor="emp-base-salary">Base Salary</Label>
                 <Input
+                  id="emp-base-salary"
                   type="number"
                   value={form.baseSalary}
                   onChange={(e) => setForm({ ...form, baseSalary: Number(e.target.value) })}

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +47,6 @@ import {
 } from "@/lib/mock-db/invoices";
 import { getClientById } from "@/lib/mock-db/clients";
 import { getTemplateById } from "@/lib/mock-db/templates";
-import { downloadInvoicePDF } from "@/lib/pdf/invoice-pdf";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
 import type { EmailMode } from "@/lib/invoices/email";
@@ -119,6 +119,7 @@ export default function InvoiceDetailPage({
   };
 
   const handleDownloadPDF = async () => {
+    const { downloadInvoicePDF } = await import("@/lib/pdf/invoice-pdf");
     await downloadInvoicePDF(invoice, client, template);
     toast.success("PDF downloaded");
   };
@@ -154,6 +155,12 @@ export default function InvoiceDetailPage({
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Invoices", href: "/invoices" },
+            { label: invoice.invoiceNumber },
+          ]}
+        />
         <PageHeader title={invoice.invoiceNumber} description={`Invoice for ${client.name}`}>
           <div className="flex flex-wrap gap-2">
             {invoice.status !== "paid" && (
@@ -337,7 +344,7 @@ export default function InvoiceDetailPage({
                   disabled={!shareUrl}
                   aria-label={linkCopied ? "Link copied" : "Copy link"}
                 >
-                  {linkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  {linkCopied ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>

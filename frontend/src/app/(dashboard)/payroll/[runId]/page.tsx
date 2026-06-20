@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Download, Play } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,8 @@ import {
   processPayrollRun,
   markPayrollPaid,
 } from "@/lib/mock-db/payroll";
-import { getEmployeeById } from "@/lib/mock-db/employees";
+import { getEmployees } from "@/lib/mock-db/employees";
+import { useStorageData } from "@/hooks/use-storage-data";
 import { PayrollStatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
@@ -46,6 +48,11 @@ export default function PayrollDetailPage({
   const [run, setRun] = useState<PayrollRun | undefined>(() => getPayrollRunById(runId));
 
   const refresh = () => setRun(getPayrollRunById(runId));
+
+  const employees = useStorageData(() => getEmployees(), ["employees"]);
+  const employeeMap = useMemo(() => {
+    return new Map(employees.map((emp) => [emp.id, emp]));
+  }, [employees]);
 
   if (!run) {
     return (
@@ -86,7 +93,7 @@ export default function PayrollDetailPage({
 
   const handleExport = () => {
     const data = run.entries.map((entry) => {
-      const emp = getEmployeeById(entry.employeeId);
+      const emp = employeeMap.get(entry.employeeId);
       return {
         employee: emp ? `${emp.firstName} ${emp.lastName}` : "Unknown",
         employeeId: emp?.employeeId || "",
@@ -124,6 +131,12 @@ export default function PayrollDetailPage({
   return (
     <RoleGate roles={["admin", "accountant", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Payroll", href: "/payroll" },
+            { label: `${MONTHS[run.month - 1]} ${run.year}` },
+          ]}
+        />
         <PageHeader
           title={`${MONTHS[run.month - 1]} ${run.year} Payroll`}
           description={`${run.entries.length} employees`}
@@ -163,7 +176,7 @@ export default function PayrollDetailPage({
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Total Net</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-emerald-600">{formatCurrency(run.totalNet)}</p></CardContent>
+            <CardContent><p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(run.totalNet)}</p></CardContent>
           </Card>
         </div>
 
@@ -185,7 +198,7 @@ export default function PayrollDetailPage({
                 </TableHeader>
                 <TableBody>
                   {run.entries.map((entry) => {
-                    const emp = getEmployeeById(entry.employeeId);
+                    const emp = employeeMap.get(entry.employeeId);
                     return (
                       <TableRow key={entry.id}>
                         <TableCell className="font-medium">
@@ -227,7 +240,7 @@ export default function PayrollDetailPage({
             </div>
             <div className="space-y-3 md:hidden">
               {run.entries.map((entry) => {
-                const emp = getEmployeeById(entry.employeeId);
+                const emp = employeeMap.get(entry.employeeId);
                 return (
                   <div key={entry.id} className="rounded-lg border p-4">
                     <p className="font-medium">{emp ? `${emp.firstName} ${emp.lastName}` : "Unknown"}</p>

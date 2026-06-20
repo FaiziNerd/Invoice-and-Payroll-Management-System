@@ -26,17 +26,20 @@ export function useStorageData<T>(
   storageKeys?: string[]
 ): T {
   const pathname = usePathname();
-  const [version, setVersion] = useState(0);
+  const [, setVersion] = useState(0);
 
   const bump = useCallback(() => {
     sendDiagLog("hook", `useStorageData bump triggered`);
     setVersion((v) => v + 1);
   }, []);
 
+  const storageKeysStr = storageKeys?.join(",") || "";
+
   useEffect(() => {
     const onStorageChange = (event: Event) => {
       const key = (event as CustomEvent<{ key?: string }>).detail?.key;
-      if (!storageKeys || !key || storageKeys.includes(key)) {
+      const keys = storageKeysStr ? storageKeysStr.split(",") : null;
+      if (!keys || !key || keys.includes(key)) {
         sendDiagLog("hook-event", `Storage key changed: ${key}`);
         bump();
       }
@@ -48,7 +51,7 @@ export function useStorageData<T>(
       window.removeEventListener(STORAGE_CHANGE_EVENT, onStorageChange);
       window.removeEventListener(COMPANY_CHANGE_EVENT, bump);
     };
-  }, [storageKeys, bump]);
+  }, [storageKeysStr, bump]);
 
   useEffect(() => {
     bump();
@@ -56,4 +59,18 @@ export function useStorageData<T>(
 
   sendDiagLog("hook-read", `useStorageData reading current value for keys: ${storageKeys?.join(", ") || 'all'}`);
   return getter();
+}
+
+export function useStorageDataWithLoading<T>(
+  getter: () => T,
+  storageKeys?: string[]
+): { data: T; isLoading: boolean } {
+  const [isLoading, setIsLoading] = useState(true);
+  const data = useStorageData(getter, storageKeys);
+
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
+
+  return { data, isLoading };
 }

@@ -5,12 +5,12 @@ import Link from "next/link";
 import { Download, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPayrollRunById } from "@/lib/mock-db/payroll";
 import { getSlipsByRunId, generateSlipsForRun } from "@/lib/mock-db/salary-slips";
 import { getEmployeeById } from "@/lib/mock-db/employees";
-import { downloadSalarySlipPDF, downloadSalarySlipsZip } from "@/lib/pdf/salary-slip-pdf";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -75,6 +75,7 @@ export default function SalarySlipsRunPage({
   const handleDownload = async (slip: SalarySlip) => {
     const emp = getEmployeeById(slip.employeeId);
     if (!emp) return;
+    const { downloadSalarySlipPDF } = await import("@/lib/pdf/salary-slip-pdf");
     await downloadSalarySlipPDF(slip, emp);
     toast.success(`Downloaded slip for ${emp.firstName} ${emp.lastName}`);
   };
@@ -91,6 +92,7 @@ export default function SalarySlipsRunPage({
 
     setDownloading(true);
     try {
+      const { downloadSalarySlipsZip } = await import("@/lib/pdf/salary-slip-pdf");
       await downloadSalarySlipsZip(items, `salary-slips-${run.month}-${run.year}.zip`);
       toast.success(`Downloaded ${items.length} salary slips as ZIP`);
     } finally {
@@ -103,6 +105,12 @@ export default function SalarySlipsRunPage({
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Salary Slips", href: "/salary-slips" },
+            { label: `${MONTHS[run.month - 1]} ${run.year}` },
+          ]}
+        />
         <PageHeader
           title={`Salary Slips — ${MONTHS[run.month - 1]} ${run.year}`}
           description={`${run.entries.length} employees`}
@@ -155,7 +163,7 @@ export default function SalarySlipsRunPage({
                         </p>
                         <div className="mt-1 flex gap-4 text-sm">
                           <span>Gross: {formatCurrency(slip.grossPay)}</span>
-                          <span className="font-semibold text-emerald-600">
+                          <span className="font-semibold text-green-600 dark:text-green-400">
                             Net: {formatCurrency(slip.netPay)}
                           </span>
                         </div>

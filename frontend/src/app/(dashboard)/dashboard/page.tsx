@@ -14,7 +14,8 @@ import { getClients } from "@/lib/mock-db/clients";
 import { getEmployees } from "@/lib/mock-db/employees";
 import { getDepartments } from "@/lib/mock-db/departments";
 import { computeInvoiceAging } from "@/lib/invoices/aging";
-import { useStorageData } from "@/hooks/use-storage-data";
+import { useStorageData, useStorageDataWithLoading } from "@/hooks/use-storage-data";
+import { KpiSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import {
   computeMoMChange,
@@ -24,20 +25,14 @@ import {
   getMonthTotals,
   monthKey,
 } from "@/lib/analytics/dashboard";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const RevenueChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.RevenueChart), { ssr: false });
+const InvoiceAnalyticsChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.InvoiceAnalyticsChart), { ssr: false });
+const InvoiceAgingChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.InvoiceAgingChart), { ssr: false });
+const PayrollTrendChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.PayrollTrendChart), { ssr: false });
+const DeptPayrollChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.DeptPayrollChart), { ssr: false });
+const NetMarginTrendChart = dynamic(() => import("@/components/dashboard/dashboard-charts").then((m) => m.NetMarginTrendChart), { ssr: false });
 import {
   FileText,
   DollarSign,
@@ -52,7 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { exportToCSV, generateCSV } from "@/lib/csv";
 import { addAuditLog } from "@/lib/audit";
-import JSZip from "jszip";
+
 import {
   Table,
   TableBody,
@@ -67,7 +62,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { Invoice } from "@/types";
 
-const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#7c3aed"];
 
 function ChartPlaceholder({ message }: { message: string }) {
   return (
@@ -84,7 +78,7 @@ function MoMBadge({ change }: { change: number | null }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 text-xs font-medium ${
-        positive ? "text-green-600" : "text-destructive"
+        positive ? "text-green-600 dark:text-green-400" : "text-destructive"
       }`}
     >
       <Icon className="h-3 w-3" />
@@ -98,45 +92,45 @@ export default function DashboardPage() {
   const { session, hasRole } = useAuth();
   const [reminderInvoice, setReminderInvoice] = useState<Invoice | null>(null);
 
-  const invoices = useStorageData(() => getInvoices(), ["invoices"]);
+  const { data: invoices, isLoading } = useStorageDataWithLoading(() => getInvoices(), ["invoices"]);
   const payrollRuns = useStorageData(() => getPayrollRuns(), ["payroll_runs"]);
   const clients = useStorageData(() => getClients(), ["clients"]);
   const employees = useStorageData(() => getEmployees(), ["employees"]);
   const departments = useStorageData(() => getDepartments(), ["departments"]);
 
-  const paidInvoices = invoices.filter((i) => i.status === "paid");
-  const overdueInvoices = invoices.filter((i) => i.status === "overdue");
-  const sentInvoices = invoices.filter((i) => i.status === "sent");
+  const paidInvoices = useMemo(() => invoices.filter((i) => i.status === "paid"), [invoices]);
+  const overdueInvoices = useMemo(() => invoices.filter((i) => i.status === "overdue"), [invoices]);
+  const sentInvoices = useMemo(() => invoices.filter((i) => i.status === "sent"), [invoices]);
   const reminderCandidates = useStorageData(() => getInvoicesNeedingReminder(), ["invoices"]);
 
-  const totalRevenue = paidInvoices.reduce((s, i) => s + i.total, 0);
-  const outstanding = [...overdueInvoices, ...sentInvoices].reduce((s, i) => s + i.total, 0);
-  const totalPayroll = payrollRuns
+  const totalRevenue = useMemo(() => paidInvoices.reduce((s, i) => s + i.total, 0), [paidInvoices]);
+  const outstanding = useMemo(() => [...overdueInvoices, ...sentInvoices].reduce((s, i) => s + i.total, 0), [overdueInvoices, sentInvoices]);
+  const totalPayroll = useMemo(() => payrollRuns
     .filter((r) => r.status === "paid" || r.status === "processed")
-    .reduce((s, r) => s + r.totalNet, 0);
+    .reduce((s, r) => s + r.totalNet, 0), [payrollRuns]);
 
   const monthTotals = useMemo(
     () => getMonthTotals(invoices, payrollRuns),
     [invoices, payrollRuns]
   );
-  const { current: currentMonth, previous: prevMonth } = getCurrentAndPreviousMonth(monthTotals);
+  const { current: currentMonth, previous: prevMonth } = useMemo(() => getCurrentAndPreviousMonth(monthTotals), [monthTotals]);
 
-  const revenueMoM = computeMoMChange(currentMonth?.revenue ?? 0, prevMonth?.revenue ?? 0);
-  const outstandingMoM = computeMoMChange(
+  const revenueMoM = useMemo(() => computeMoMChange(currentMonth?.revenue ?? 0, prevMonth?.revenue ?? 0), [currentMonth, prevMonth]);
+  const outstandingMoM = useMemo(() => computeMoMChange(
     [...overdueInvoices, ...sentInvoices]
       .filter((inv) => monthKey(inv.issueDate) === currentMonth?.key)
       .reduce((s, i) => s + i.total, 0),
     [...overdueInvoices, ...sentInvoices]
       .filter((inv) => monthKey(inv.issueDate) === prevMonth?.key)
       .reduce((s, i) => s + i.total, 0)
-  );
-  const payrollMoM = computeMoMChange(currentMonth?.payroll ?? 0, prevMonth?.payroll ?? 0);
-  const marginMoM = computeMoMChange(currentMonth?.margin ?? 0, prevMonth?.margin ?? 0);
+  ), [overdueInvoices, sentInvoices, currentMonth, prevMonth]);
+  const payrollMoM = useMemo(() => computeMoMChange(currentMonth?.payroll ?? 0, prevMonth?.payroll ?? 0), [currentMonth, prevMonth]);
+  const marginMoM = useMemo(() => computeMoMChange(currentMonth?.margin ?? 0, prevMonth?.margin ?? 0), [currentMonth, prevMonth]);
 
-  const netMarginTrend = monthTotals.map((m) => ({
+  const netMarginTrend = useMemo(() => monthTotals.map((m) => ({
     month: m.label,
     margin: m.margin,
-  }));
+  })), [monthTotals]);
 
   const deptChartData = useMemo(
     () => computeDepartmentPayroll(payrollRuns, employees, departments),
@@ -162,22 +156,22 @@ export default function DashboardPage() {
     }));
   }, [monthTotals]);
 
-  const invoiceStatusData = [
+  const invoiceStatusData = useMemo(() => [
     { name: "Paid", value: paidInvoices.length },
     { name: "Sent", value: sentInvoices.length },
     { name: "Overdue", value: overdueInvoices.length },
     { name: "Draft", value: invoices.filter((i) => i.status === "draft").length },
-  ];
+  ], [paidInvoices, sentInvoices, overdueInvoices, invoices]);
 
   const agingData = useMemo(() => computeInvoiceAging(invoices), [invoices]);
 
-  const payrollTrend = payrollRuns
+  const payrollTrend = useMemo(() => payrollRuns
     .slice(0, 6)
     .reverse()
     .map((r) => ({
       month: `${r.month}/${r.year}`,
       expense: r.totalNet,
-    }));
+    })), [payrollRuns]);
 
   const showInvoiceWidgets = hasRole("admin", "accountant");
   const showPayrollWidgets = hasRole("admin", "hr", "accountant");
@@ -232,6 +226,7 @@ export default function DashboardPage() {
   };
 
   const handleExportDashboard = async () => {
+    const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
 
     const summaryRows: { metric: string; value: string }[] = [];
@@ -355,72 +350,76 @@ export default function DashboardPage() {
         </Button>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {showInvoiceWidgets && (
-          <>
+      {isLoading ? (
+        <KpiSkeleton />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {showInvoiceWidgets && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">{paidInvoices.length} paid invoices</p>
+                    <MoMBadge change={revenueMoM} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(outstanding)}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {overdueInvoices.length} overdue, {sentInvoices.length} sent
+                    </p>
+                    <MoMBadge change={outstandingMoM} />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          {showPayrollWidgets && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Payroll Expense</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(totalPayroll)}</div>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">{paidInvoices.length} paid invoices</p>
-                  <MoMBadge change={revenueMoM} />
+                  <p className="text-xs text-muted-foreground">{payrollRuns.length} payroll runs</p>
+                  <MoMBadge change={payrollMoM} />
                 </div>
               </CardContent>
             </Card>
+          )}
+          {showNetMargin && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(outstanding)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(totalRevenue - totalPayroll)}
+                </div>
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {overdueInvoices.length} overdue, {sentInvoices.length} sent
-                  </p>
-                  <MoMBadge change={outstandingMoM} />
+                  <p className="text-xs text-muted-foreground">Revenue minus payroll</p>
+                  <MoMBadge change={marginMoM} />
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
-        {showPayrollWidgets && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Payroll Expense</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalPayroll)}</div>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-muted-foreground">{payrollRuns.length} payroll runs</p>
-                <MoMBadge change={payrollMoM} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {showNetMargin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(totalRevenue - totalPayroll)}
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-muted-foreground">Revenue minus payroll</p>
-                <MoMBadge change={marginMoM} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {showInvoiceWidgets && (
         <div>
@@ -523,15 +522,15 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {revenueByMonth.some((d) => d.revenue > 0) ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={revenueByMonth}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
-                    <YAxis className="text-xs" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label="Revenue overview bar chart showing monthly revenue totals">
+                  <span className="sr-only">
+                    Monthly revenue chart. Most recent month:{" "}
+                    {revenueByMonth[revenueByMonth.length - 1]?.month ?? "N/A"} —{" "}
+                    {formatCurrency(revenueByMonth[revenueByMonth.length - 1]?.revenue ?? 0)}.
+                    Total revenue: {formatCurrency(totalRevenue)}.
+                  </span>
+                  <RevenueChart data={revenueByMonth} />
+                </div>
               ) : (
                 <ChartPlaceholder message="No revenue data yet" />
               )}
@@ -546,24 +545,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {invoiceStatusData.some((d) => d.value > 0) ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={invoiceStatusData.filter((d) => d.value > 0)}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`}
-                    >
-                      {invoiceStatusData.filter((d) => d.value > 0).map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label="Invoice analytics donut chart showing breakdown by status">
+                  <span className="sr-only">
+                    Invoice status breakdown: {invoiceStatusData.map((d) => `${d.name}: ${d.value}`).join(", ")}.
+                    Total invoices: {invoices.length}.
+                  </span>
+                  <InvoiceAnalyticsChart data={invoiceStatusData} />
+                </div>
               ) : (
                 <ChartPlaceholder message="No invoice data yet" />
               )}
@@ -578,15 +566,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {agingData.some((d) => d.count > 0) ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={agingData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="label" className="text-xs" angle={-35} textAnchor="end" height={50} />
-                    <YAxis className="text-xs" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="amount" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label="Invoice aging bar chart showing outstanding amounts by age bucket">
+                  <InvoiceAgingChart data={agingData} />
+                </div>
               ) : (
                 <ChartPlaceholder message="No outstanding invoices to age" />
               )}
@@ -609,15 +591,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {payrollTrend.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={payrollTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
-                    <YAxis className="text-xs" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Line type="monotone" dataKey="expense" stroke="#7c3aed" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label="Payroll expense trend line chart showing monthly payroll costs">
+                  <PayrollTrendChart data={payrollTrend} />
+                </div>
               ) : (
                 <ChartPlaceholder message="No payroll data yet" />
               )}
@@ -631,24 +607,9 @@ export default function DashboardPage() {
               <CardTitle>Department Payroll Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={deptChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
-                  >
-                    {deptChartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div role="img" aria-label="Department payroll breakdown donut chart showing payroll cost per department">
+                <DeptPayrollChart data={deptChartData} />
+              </div>
             </CardContent>
           </Card>
         )}
@@ -660,15 +621,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {netMarginTrend.some((d) => d.margin !== 0) ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={netMarginTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" angle={-35} textAnchor="end" height={50} />
-                    <YAxis className="text-xs" />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Line type="monotone" dataKey="margin" stroke="#10b981" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div role="img" aria-label="Net margin trend line chart showing monthly revenue minus payroll">
+                  <NetMarginTrendChart data={netMarginTrend} />
+                </div>
               ) : (
                 <ChartPlaceholder message="No margin data yet" />
               )}

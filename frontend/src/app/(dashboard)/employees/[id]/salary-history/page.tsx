@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getEmployeeById } from "@/lib/mock-db/employees";
 import { getSlipsByEmployeeId } from "@/lib/mock-db/salary-slips";
-import { downloadSalarySlipPDF } from "@/lib/pdf/salary-slip-pdf";
 import { useStorageData } from "@/hooks/use-storage-data";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -30,6 +29,7 @@ export default function SalaryHistoryPage({
     const slip = slips.find((s) => s.id === slipId);
     if (!slip || !employee) return;
     try {
+      const { downloadSalarySlipPDF } = await import("@/lib/pdf/salary-slip-pdf");
       await downloadSalarySlipPDF(slip, employee);
       toast.success("Salary slip downloaded");
     } catch {

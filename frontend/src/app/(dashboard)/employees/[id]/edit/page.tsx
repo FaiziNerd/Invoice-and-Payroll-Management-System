@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Trash2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,6 +120,13 @@ export default function EditEmployeePage({
   return (
     <RoleGate roles={["admin", "hr"]}>
       <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Employees", href: "/employees" },
+            { label: `${employee.firstName} ${employee.lastName}`, href: `/employees/${id}` },
+            { label: "Edit" },
+          ]}
+        />
         <PageHeader title={`Edit ${employee.firstName} ${employee.lastName}`} description="Update employee profile and salary">
           <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)}>
             <Trash2 className="h-4 w-4" /> Delete
@@ -130,13 +138,13 @@ export default function EditEmployeePage({
             <CardHeader><CardTitle>Personal Info</CardTitle></CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Employee ID</Label>
-                <Input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+                <Label htmlFor="edit-emp-id">Employee ID</Label>
+                <Input id="edit-emp-id" value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Department</Label>
+                <Label htmlFor="edit-emp-dept">Department</Label>
                 <Select value={form.departmentId} onValueChange={(v) => setForm({ ...form, departmentId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger id="edit-emp-dept"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -145,33 +153,33 @@ export default function EditEmployeePage({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>First Name</Label>
-                <Input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
+                <Label htmlFor="edit-emp-fname">First Name</Label>
+                <Input id="edit-emp-fname" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
               </div>
               <div className="space-y-2">
-                <Label>Last Name</Label>
-                <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
+                <Label htmlFor="edit-emp-lname">Last Name</Label>
+                <Input id="edit-emp-lname" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                <Label htmlFor="edit-emp-email">Email</Label>
+                <Input id="edit-emp-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <Label htmlFor="edit-emp-phone">Phone</Label>
+                <Input id="edit-emp-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Position</Label>
-                <Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
+                <Label htmlFor="edit-emp-pos">Position</Label>
+                <Input id="edit-emp-pos" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Join Date</Label>
-                <Input type="date" value={form.joinDate} onChange={(e) => setForm({ ...form, joinDate: e.target.value })} />
+                <Label htmlFor="edit-emp-join">Join Date</Label>
+                <Input id="edit-emp-join" type="date" value={form.joinDate} onChange={(e) => setForm({ ...form, joinDate: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Status</Label>
+                <Label htmlFor="edit-emp-status">Status</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="edit-emp-status"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -185,8 +193,8 @@ export default function EditEmployeePage({
             <CardHeader><CardTitle>Salary Structure</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Base Salary</Label>
-                <Input type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: Number(e.target.value) })} />
+                <Label htmlFor="edit-emp-base-salary">Base Salary</Label>
+                <Input id="edit-emp-base-salary" type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: Number(e.target.value) })} />
               </div>
               <div>
                 <div className="flex justify-between mb-2">
