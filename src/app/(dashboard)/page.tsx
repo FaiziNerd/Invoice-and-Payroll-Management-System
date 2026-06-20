@@ -1,0 +1,315 @@
+"use client";
+
+import { useMemo } from "react";
+import { useAuth } from "@/providers/auth-provider";
+import { PageHeader } from "@/components/shared/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getInvoices } from "@/lib/mock-db/invoices";
+import { getPayrollRuns } from "@/lib/mock-db/payroll";
+import { getClients } from "@/lib/mock-db/clients";
+import { formatCurrency } from "@/lib/utils";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from "recharts";
+import { FileText, DollarSign, AlertTriangle, Users, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { exportToCSV } from "@/lib/csv";
+import { addAuditLog } from "@/lib/audit";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { InvoiceStatusBadge } from "@/components/shared/status-badge";
+import Link from "next/link";
+
+const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444"];
+
+export default function DashboardPage() {
+  const { session, hasRole } = useAuth();
+
+  const invoices = useMemo(() => getInvoices(), []);
+  const payrollRuns = useMemo(() => getPayrollRuns(), []);
+  const clients = useMemo(() => getClients(), []);
+
+  const paidInvoices = invoices.filter((i) => i.status === "paid");
+  const overdueInvoices = invoices.filter((i) => i.status === "overdue");
+  const sentInvoices = invoices.filter((i) => i.status === "sent");
+
+  const totalRevenue = paidInvoices.reduce((s, i) => s + i.total, 0);
+  const outstanding = [...overdueInvoices, ...sentInvoices].reduce((s, i) => s + i.total, 0);
+  const totalPayroll = payrollRuns
+    .filter((r) => r.status === "paid" || r.status === "processed")
+    .reduce((s, r) => s + r.totalNet, 0);
+
+  const revenueByMonth = useMemo(() => {
+    const months: Record<string, number> = {};
+    paidInvoices.forEach((inv) => {
+      const d = new Date(inv.issueDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      months[key] = (months[key] || 0) + inv.total;
+    });
+    return Object.entries(months)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, revenue]) => ({
+        month: month.slice(5) + "/" + month.slice(0, 4),
+        revenue,
+      }));
+  }, [paidInvoices]);
+
+  const invoiceStatusData = [
+    { name: "Paid", value: paidInvoices.length },
+    { name: "Sent", value: sentInvoices.length },
+    { name: "Overdue", value: overdueInvoices.length },
+    { name: "Draft", value: invoices.filter((i) => i.status === "draft").length },
+  ].filter((d) => d.value > 0);
+
+  const payrollTrend = payrollRuns
+    .slice(0, 6)
+    .reverse()
+    .map((r) => ({
+      month: `${r.month}/${r.year}`,
+      expense: r.totalNet,
+    }));
+
+  const handleExportOutstanding = () => {
+    const data = [...overdueInvoices, ...sentInvoices].map((inv) => {
+      const client = clients.find((c) => c.id === inv.clientId);
+      return {
+        invoiceNumber: inv.invoiceNumber,
+        client: client?.name || "Unknown",
+        amount: inv.total,
+        status: inv.status,
+        dueDate: inv.dueDate,
+      };
+    });
+    exportToCSV(data, [
+      { key: "invoiceNumber", label: "Invoice" },
+      { key: "client", label: "Client" },
+      { key: "amount", label: "Amount" },
+      { key: "status", label: "Status" },
+      { key: "dueDate", label: "Due Date" },
+    ], "outstanding-payments.csv");
+    if (session) {
+      addAuditLog({
+        action: "export",
+        entity: "dashboard",
+        userId: session.userId,
+        userName: session.name,
+        description: "Exported outstanding payments CSV",
+      });
+    }
+  };
+
+  const showInvoiceWidgets = hasRole("admin", "accountant");
+  const showPayrollWidgets = hasRole("admin", "hr", "accountant");
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description="Financial overview and analytics"
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {showInvoiceWidgets && (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground">{paidInvoices.length} paid invoices</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(outstanding)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {overdueInvoices.length} overdue, {sentInvoices.length} sent
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+        {showPayrollWidgets && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Payroll Expense</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(totalPayroll)}</div>
+              <p className="text-xs text-muted-foreground">{payrollRuns.length} payroll runs</p>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(totalRevenue - totalPayroll)}
+            </div>
+            <p className="text-xs text-muted-foreground">Revenue minus payroll</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {showInvoiceWidgets && revenueByMonth.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Revenue Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={revenueByMonth}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {showInvoiceWidgets && invoiceStatusData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={invoiceStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {invoiceStatusData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {showPayrollWidgets && payrollTrend.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Payroll Expense Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={payrollTrend}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Line type="monotone" dataKey="expense" stroke="#7c3aed" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {showInvoiceWidgets && (overdueInvoices.length > 0 || sentInvoices.length > 0) && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Outstanding Payments
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={handleExportOutstanding}>
+              Export CSV
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Due Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...overdueInvoices, ...sentInvoices].map((inv) => {
+                    const client = clients.find((c) => c.id === inv.clientId);
+                    return (
+                      <TableRow key={inv.id}>
+                        <TableCell>
+                          <Link href={`/invoices/${inv.id}`} className="text-primary hover:underline">
+                            {inv.invoiceNumber}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{client?.name}</TableCell>
+                        <TableCell>{formatCurrency(inv.total)}</TableCell>
+                        <TableCell><InvoiceStatusBadge status={inv.status} /></TableCell>
+                        <TableCell>{new Date(inv.dueDate).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="space-y-3 md:hidden">
+              {[...overdueInvoices, ...sentInvoices].map((inv) => {
+                const client = clients.find((c) => c.id === inv.clientId);
+                return (
+                  <div key={inv.id} className="rounded-lg border p-4">
+                    <div className="flex justify-between">
+                      <Link href={`/invoices/${inv.id}`} className="font-medium text-primary">
+                        {inv.invoiceNumber}
+                      </Link>
+                      <InvoiceStatusBadge status={inv.status} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{client?.name}</p>
+                    <p className="font-semibold">{formatCurrency(inv.total)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
