@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Download, Play } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,20 @@ export default function PayrollDetailPage({
   const refresh = () => setRun(getPayrollRunById(runId));
 
   if (!run) {
-    return <p className="text-center py-20 text-muted-foreground">Payroll run not found</p>;
+    return (
+      <RoleGate roles={["admin", "accountant", "hr"]}>
+        <EmptyState
+          icon="file"
+          title="Payroll run not found"
+          description="This payroll run may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/payroll">Back to Payroll</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   const handleEntryUpdate = (entryId: string, field: "bonus" | "oneOffDeduction", value: number) => {

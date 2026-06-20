@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Plus, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,7 +24,12 @@ import { RoleGate } from "@/components/auth/role-gate";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function PayrollPage() {
-  const runs = getPayrollRuns();
+  const pathname = usePathname();
+  const [runs, setRuns] = useState(() => getPayrollRuns());
+
+  useEffect(() => {
+    setRuns(getPayrollRuns());
+  }, [pathname]);
 
   return (
     <RoleGate roles={["admin", "accountant", "hr"]}>
@@ -40,7 +48,16 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="pt-6">
             {runs.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No payroll runs yet. Start your first run.</p>
+              <EmptyState
+                icon="file"
+                title="No payroll runs yet"
+                description="Start your first monthly payroll run to calculate and process employee salaries."
+                action={
+                  <Button asChild>
+                    <Link href="/payroll/run"><Plus className="h-4 w-4" /> Run Payroll</Link>
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <div className="hidden md:block">
