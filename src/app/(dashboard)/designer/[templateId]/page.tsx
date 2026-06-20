@@ -2,7 +2,9 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +27,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
 import { TemplatePreview } from "@/components/designer/template-preview";
+import { PublishFlowSteps } from "@/components/designer/publish-flow-steps";
+import { MobilePreviewFrame } from "@/components/designer/mobile-preview-frame";
 import type { TemplateBranding } from "@/types";
 
 const defaultBranding: TemplateBranding = {
@@ -53,6 +57,24 @@ export default function TemplateEditorPage({
   const [name, setName] = useState(existing?.name || "New Template");
   const [theme, setTheme] = useState<"classic" | "modern" | "minimal">(existing?.theme || "modern");
   const [branding, setBranding] = useState<TemplateBranding>(existing?.branding || defaultBranding);
+  const [isActive, setIsActive] = useState(existing?.isActive ?? false);
+
+  if (!isNew && !existing) {
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <EmptyState
+          icon="palette"
+          title="Template not found"
+          description="This template may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/designer">Back to Designer</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
+  }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -64,31 +86,73 @@ export default function TemplateEditorPage({
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    if (!session) return;
+  const persistTemplate = (redirectToPreview = false) => {
+    if (!session) return null;
+
     if (isNew) {
-      const t = createTemplate(
+      const created = createTemplate(
         { name, isDefault: false, isActive: false, theme, branding },
         session.userId,
         session.name
       );
-      toast.success("Template created");
-      router.push(`/designer/${t.id}`);
-    } else if (existing) {
-      updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
-      toast.success("Template saved");
+      toast.success("Template saved as draft");
+      if (redirectToPreview) {
+        router.push(`/designer/preview/${created.id}`);
+      } else {
+        router.push(`/designer/${created.id}`);
+      }
+      return created;
     }
+
+    if (existing) {
+      const updated = updateTemplate(existing.id, { name, theme, branding }, session.userId, session.name);
+      if (updated) {
+        setIsActive(updated.isActive);
+        toast.success("Template saved");
+        if (redirectToPreview) {
+          router.push(`/designer/preview/${existing.id}`);
+        }
+      }
+      return updated;
+    }
+
+    return null;
+  };
+
+  const handleSave = () => {
+    persistTemplate(false);
+  };
+
+  const handleSaveAndPreview = () => {
+    persistTemplate(true);
   };
 
   return (
     <RoleGate roles={["admin", "accountant"]}>
       <div className="space-y-6">
         <PageHeader title={isNew ? "New Template" : `Edit: ${name}`}>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => router.push("/designer")}>Back</Button>
-            <Button onClick={handleSave}>Save Template</Button>
+            <Button variant="outline" onClick={handleSave}>Save Draft</Button>
+            {!isNew && (
+              <Button onClick={handleSaveAndPreview}>Save & Preview</Button>
+            )}
+            {isNew && (
+              <Button onClick={handleSave}>Save Template</Button>
+            )}
           </div>
         </PageHeader>
+
+        {!isActive && (
+          <Card>
+            <CardContent className="py-4">
+              <PublishFlowSteps currentStep="design" />
+              <p className="mt-3 text-sm text-muted-foreground">
+                Step 1 of 3: Customize your template, then preview and activate it for use on invoices.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
@@ -193,15 +257,19 @@ export default function TemplateEditorPage({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Mobile</p>
-                  <div className="rounded-lg border p-3 max-w-[220px] mx-auto">
+                  <MobilePreviewFrame>
                     <TemplatePreview branding={branding} compact />
-                  </div>
+                  </MobilePreviewFrame>
                 </div>
               </CardContent>
             </Card>
-            {!isNew && existing && !existing.isActive && (
-              <Button variant="outline" className="w-full" onClick={() => router.push(`/designer/preview/${templateId}`)}>
-                Review & Publish
+            {!isNew && !isActive && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push(`/designer/preview/${templateId}`)}
+              >
+                Continue to Preview
               </Button>
             )}
           </div>

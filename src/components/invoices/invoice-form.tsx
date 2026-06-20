@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getClients } from "@/lib/mock-db/clients";
-import { getTemplates } from "@/lib/mock-db/templates";
+import { getActiveTemplates } from "@/lib/mock-db/templates";
 import { generateId } from "@/lib/utils";
 import { Plus, Trash2 } from "lucide-react";
 import type { Client, Invoice, InvoiceLineItem } from "@/types";
@@ -50,7 +50,7 @@ export function InvoiceForm({
   onCancel,
 }: InvoiceFormProps) {
   const clients = getClients();
-  const templates = getTemplates().filter((t) => t.isActive);
+  const templates = getActiveTemplates();
 
   const [clientId, setClientId] = useState(initialValues?.clientId || "");
   const [templateId, setTemplateId] = useState(

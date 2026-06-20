@@ -3,12 +3,23 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getTemplateById, updateTemplate } from "@/lib/mock-db/templates";
+import { getTemplateById, publishTemplate } from "@/lib/mock-db/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
 import { TemplatePreview } from "@/components/designer/template-preview";
+import { PublishFlowSteps } from "@/components/designer/publish-flow-steps";
+import { MobilePreviewFrame } from "@/components/designer/mobile-preview-frame";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -23,18 +34,33 @@ export default function TemplatePreviewPage({
   const router = useRouter();
   const { session } = useAuth();
   const [template, setTemplate] = useState(() => getTemplateById(templateId));
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
 
   if (!template) {
-    return <p className="text-center py-20">Template not found</p>;
+    return (
+      <RoleGate roles={["admin", "accountant"]}>
+        <EmptyState
+          icon="palette"
+          title="Template not found"
+          description="This template may have been deleted or the link is invalid."
+          action={
+            <Button asChild>
+              <Link href="/designer">Back to Designer</Link>
+            </Button>
+          }
+        />
+      </RoleGate>
+    );
   }
 
   const { branding } = template;
 
   const handleActivate = () => {
     if (!session) return;
-    const updated = updateTemplate(templateId, { isActive: true }, session.userId, session.name);
+    const updated = publishTemplate(templateId, session.userId, session.name);
     if (updated) {
       setTemplate(updated);
+      setShowActivateDialog(false);
       toast.success("Template published and activated");
       router.push("/designer");
     }
@@ -56,10 +82,21 @@ export default function TemplatePreviewPage({
               <Link href={`/designer/${template.id}`}>Back to Editor</Link>
             </Button>
             {!template.isActive && (
-              <Button onClick={handleActivate}>Activate Template</Button>
+              <Button onClick={() => setShowActivateDialog(true)}>Activate Template</Button>
             )}
           </div>
         </div>
+
+        {!template.isActive && (
+          <Card>
+            <CardContent className="py-4">
+              <PublishFlowSteps currentStep="preview" />
+              <p className="mt-3 text-sm text-muted-foreground">
+                Step 2 of 3: Review desktop and mobile previews with sample invoice data, then activate when ready.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
@@ -72,13 +109,31 @@ export default function TemplatePreviewPage({
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-2">Mobile Preview</p>
-            <Card className="max-w-sm mx-auto">
-              <CardContent className="p-4">
-                <DetailedInvoicePreview branding={branding} compact />
-              </CardContent>
-            </Card>
+            <MobilePreviewFrame>
+              <DetailedInvoicePreview branding={branding} compact />
+            </MobilePreviewFrame>
           </div>
         </div>
+
+        <Dialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Activate Template</DialogTitle>
+              <DialogDescription>
+                Step 3 of 3: Publish &ldquo;{template.name}&rdquo; and make it available for new invoices?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <PublishFlowSteps currentStep="activate" />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowActivateDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleActivate}>Publish Template</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGate>
   );

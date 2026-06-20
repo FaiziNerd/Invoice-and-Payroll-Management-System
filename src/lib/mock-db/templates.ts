@@ -58,6 +58,10 @@ export function getTemplates(): InvoiceTemplate[] {
   return getFromStorage<InvoiceTemplate[]>(KEY, []);
 }
 
+export function getActiveTemplates(): InvoiceTemplate[] {
+  return getTemplates().filter((t) => t.isActive);
+}
+
 export function getTemplateById(id: string): InvoiceTemplate | undefined {
   return getTemplates().find((t) => t.id === id);
 }
@@ -119,6 +123,32 @@ export function updateTemplate(
     userId,
     userName,
     description: `Updated template ${templates[index].name}`,
+  });
+  return templates[index];
+}
+
+export function publishTemplate(
+  id: string,
+  userId: string,
+  userName: string
+): InvoiceTemplate | null {
+  const templates = getTemplates();
+  const index = templates.findIndex((t) => t.id === id);
+  if (index === -1) return null;
+
+  templates[index] = {
+    ...templates[index],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  };
+  setInStorage(KEY, templates);
+  addAuditLog({
+    action: "update",
+    entity: "template",
+    entityId: id,
+    userId,
+    userName,
+    description: `Published template ${templates[index].name}`,
   });
   return templates[index];
 }
