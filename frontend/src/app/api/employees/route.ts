@@ -16,6 +16,7 @@ import {
   buildPaginatedResponse,
   parseListParams,
 } from "@/lib/api/pagination";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -120,6 +121,24 @@ export async function POST(request: Request) {
     }
     deductionRows = (data ?? []) as EmployeeDeductionRow[];
   }
+
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "create",
+    entity: "employee",
+    entityId: employee.id,
+    description: `Created employee ${parsed.data.firstName} ${parsed.data.lastName}`,
+    metadata: {
+      after: {
+        employeeId: parsed.data.employeeId,
+        departmentId: parsed.data.departmentId,
+        status: parsed.data.status,
+      },
+    },
+  });
 
   return ok(
     rowToEmployee({

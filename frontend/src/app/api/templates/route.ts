@@ -3,6 +3,7 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { createTemplateSchema } from "@/lib/api/templates/schemas";
 import { rowToTemplate, templateFieldsToRow } from "@/lib/api/templates/mappers";
 import { ensureCompanyTemplates } from "@/lib/server/ensure-company-templates";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -86,6 +87,18 @@ export async function POST(request: Request) {
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
+
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "create",
+    entity: "template",
+    entityId: data.id,
+    description: `Created invoice template ${parsed.data.name}`,
+    metadata: { after: { name: parsed.data.name, theme: parsed.data.theme } },
+  });
 
   return ok(rowToTemplate(data), 201);
 }

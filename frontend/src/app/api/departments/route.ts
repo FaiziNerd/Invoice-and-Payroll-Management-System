@@ -2,6 +2,7 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { createDepartmentSchema } from "@/lib/api/departments/schemas";
 import { departmentFieldsToRow, rowToDepartment } from "@/lib/api/departments/mappers";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 
@@ -26,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -56,6 +57,18 @@ export async function POST(request: Request) {
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
+
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "create",
+    entity: "department",
+    entityId: data.id,
+    description: `Created department ${parsed.data.name}`,
+    metadata: { after: { name: parsed.data.name } },
+  });
 
   return ok(rowToDepartment(data), 201);
 }

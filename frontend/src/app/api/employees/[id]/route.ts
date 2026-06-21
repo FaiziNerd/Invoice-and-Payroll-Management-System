@@ -8,6 +8,7 @@ import {
   type EmployeeRow,
 } from "@/lib/api/employees/mappers";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
@@ -50,7 +51,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -70,6 +71,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const existing = await fetchEmployee(supabase, companyId, id);
   if ("error" in existing) return existing.error;
+
+  const beforeEmployee = existing.employee;
 
   const updates: Record<string, string | number | null> = {};
   if (parsed.data.employeeId !== undefined) updates.employee_id = parsed.data.employeeId;
@@ -143,6 +146,36 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const refreshed = await fetchEmployee(supabase, companyId, id);
   if ("error" in refreshed) return refreshed.error;
 
+  const actorName = await getActorName(supabase, user.id, "User");
+  const afterEmployee = refreshed.employee;
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "update",
+    entity: "employee",
+    entityId: id,
+    description: `Updated employee ${afterEmployee.first_name} ${afterEmployee.last_name}`,
+    metadata: buildDiff(
+      {
+        firstName: beforeEmployee.first_name,
+        lastName: beforeEmployee.last_name,
+        email: beforeEmployee.email,
+        departmentId: beforeEmployee.department_id,
+        status: beforeEmployee.status,
+        salaryBase: beforeEmployee.salary_base,
+      },
+      {
+        firstName: afterEmployee.first_name,
+        lastName: afterEmployee.last_name,
+        email: afterEmployee.email,
+        departmentId: afterEmployee.department_id,
+        status: afterEmployee.status,
+        salaryBase: afterEmployee.salary_base,
+      }
+    ),
+  });
+
   return ok(rowToEmployee(refreshed.employee));
 }
 
@@ -150,10 +183,12 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   const existing = await fetchEmployee(supabase, companyId, id);
   if ("error" in existing) return existing.error;
+
+  const emp = existing.employee;
 
   const { count, error: guardError } = await supabase
     .from("payroll_entries")
@@ -176,6 +211,17 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
+
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "delete",
+    entity: "employee",
+    entityId: id,
+    description: `Deleted employee ${emp.first_name} ${emp.last_name}`,
+  });
 
   return ok({ deleted: true });
 }

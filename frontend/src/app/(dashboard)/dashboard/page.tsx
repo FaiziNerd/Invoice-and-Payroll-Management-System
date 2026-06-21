@@ -30,7 +30,9 @@ import {
   Download,
   Bell,
   Sparkles,
+  Brain,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exportToCSV, generateCSV } from "@/lib/csv";
 import { recordExportAudit } from "@/lib/audit";
@@ -96,6 +98,8 @@ export default function DashboardPage() {
   const netMarginTrend = analytics?.netMarginTrend ?? [];
   const deptChartData = analytics?.deptChartData ?? [];
   const dashboardInsights = analytics?.insights ?? [];
+  const payrollInsights = analytics?.payrollInsights ?? [];
+  const payrollInsightsSource = analytics?.payrollInsightsSource ?? "rules";
   const revenueByMonth = analytics?.revenueByMonth ?? [];
   const invoiceStatusData = analytics?.invoiceStatusData ?? [];
   const agingData = analytics?.agingData ?? [];
@@ -504,6 +508,38 @@ export default function DashboardPage() {
               ) : (
                 <ChartPlaceholder message="No outstanding invoices to age" />
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showPayrollWidgets && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                Payroll Insights
+                <Badge variant={payrollInsightsSource === "ai" ? "default" : "secondary"} className="ml-auto text-xs">
+                  {payrollInsightsSource === "ai" ? "AI" : "Rules"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {payrollInsights.map((insight) => (
+                  <li
+                    key={insight.id}
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      insight.type === "warning"
+                        ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+                        : insight.type === "success"
+                          ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
+                          : "border-border bg-muted/30"
+                    }`}
+                  >
+                    {insight.text}
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         )}

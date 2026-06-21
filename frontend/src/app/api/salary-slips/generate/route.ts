@@ -2,13 +2,14 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { generateSalarySlipsSchema } from "@/lib/api/payroll/schemas";
 import { rowToSalarySlip, type SalarySlipRow } from "@/lib/api/salary-slips/mappers";
+import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 
 export async function POST(request: Request) {
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -104,5 +105,20 @@ export async function POST(request: Request) {
     return fail("INTERNAL_ERROR", slipsError.message, 500);
   }
 
-  return ok(((slips ?? []) as SalarySlipRow[]).map(rowToSalarySlip));
+  const slipRows = (slips ?? []) as SalarySlipRow[];
+  if (slipRows.length > 0 && (existingSlips ?? []).length === 0) {
+    const actorName = await getActorName(supabase, user.id, "User");
+    await auditMutation(supabase, {
+      companyId,
+      userId: user.id,
+      userName: actorName,
+      action: "create",
+      entity: "salary_slip",
+      entityId: run.id,
+      description: `Generated ${slipRows.length} salary slip${slipRows.length !== 1 ? "s" : ""} for ${run.month}/${run.year}`,
+      metadata: { count: slipRows.length, payrollRunId: run.id },
+    });
+  }
+
+  return ok(slipRows.map(rowToSalarySlip));
 }

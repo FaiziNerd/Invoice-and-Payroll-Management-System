@@ -2,6 +2,7 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { updateTemplateSchema } from "@/lib/api/templates/schemas";
 import { rowToTemplate, templatePatchToRow } from "@/lib/api/templates/mappers";
+import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -38,7 +39,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   let body: unknown;
   try {
@@ -68,6 +69,16 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
   }
 
+  const { data: before, error: beforeError } = await supabase
+    .from("invoice_templates")
+    .select("id, name, is_default, is_active, theme")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (beforeError) return fail("INTERNAL_ERROR", beforeError.message, 500);
+  if (!before) return fail("NOT_FOUND", "Template not found", 404);
+
   const updates: Record<string, unknown> = templatePatchToRow(parsed.data);
   if (parsed.data.restore === true) {
     updates.deleted_at = null;
@@ -89,6 +100,31 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return fail("NOT_FOUND", "Template not found", 404);
   }
 
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "update",
+    entity: "template",
+    entityId: id,
+    description: `Updated invoice template ${data.name}`,
+    metadata: buildDiff(
+      {
+        name: before.name,
+        isDefault: before.is_default,
+        isActive: before.is_active,
+        theme: before.theme,
+      },
+      {
+        name: data.name,
+        isDefault: data.is_default,
+        isActive: data.is_active,
+        theme: data.theme,
+      }
+    ),
+  });
+
   return ok(rowToTemplate(data));
 }
 
@@ -96,11 +132,11 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const result = await requireCompanyContext({ roles: [...WRITE_ROLES] });
   if ("error" in result) return result.error;
-  const { supabase, companyId } = result.ctx;
+  const { supabase, companyId, user } = result.ctx;
 
   const { data: current, error: currentError } = await supabase
     .from("invoice_templates")
-    .select("id, is_default")
+    .select("id, is_default, name")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -133,6 +169,17 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (!data) {
     return fail("NOT_FOUND", "Template not found", 404);
   }
+
+  const actorName = await getActorName(supabase, user.id, "User");
+  await auditMutation(supabase, {
+    companyId,
+    userId: user.id,
+    userName: actorName,
+    action: "delete",
+    entity: "template",
+    entityId: id,
+    description: `Deleted invoice template ${current.name}`,
+  });
 
   return ok({ deleted: true });
 }

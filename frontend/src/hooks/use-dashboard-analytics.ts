@@ -25,6 +25,8 @@ type DashboardAnalytics = {
   payrollTrend: Array<{ month: string; expense: number }>;
   deptChartData: Array<{ name: string; value: number }>;
   insights: Array<{ id: string; text: string; type: "warning" | "info" | "success" }>;
+  payrollInsights: Array<{ id: string; text: string; type: "warning" | "info" | "success" }>;
+  payrollInsightsSource: "ai" | "rules";
   reminderCandidates: Array<{
     id: string;
     invoiceNumber: string;

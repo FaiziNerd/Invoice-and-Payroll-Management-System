@@ -8,6 +8,7 @@ import {
   getMonthTotals,
   monthKey,
 } from "@/lib/analytics/dashboard";
+import { generatePayrollInsights } from "@/lib/analytics/payroll-insights";
 import { computeInvoiceAging } from "@/lib/invoices/aging";
 import { rowToInvoice, INVOICE_SELECT, type InvoiceItemRow, type InvoiceRow } from "@/lib/api/invoices/mappers";
 import { rowToPayrollRun, type PayrollRunRow } from "@/lib/api/payroll/mappers";
@@ -102,6 +103,15 @@ export async function GET() {
     return due <= now || inv.status === "overdue";
   });
 
+  const payrollInsightsResult = await generatePayrollInsights(
+    payrollRuns,
+    employees,
+    departments,
+    invoices,
+    totalRevenue,
+    totalPayroll
+  );
+
   return ok({
     totalRevenue,
     outstanding,
@@ -133,6 +143,8 @@ export async function GET() {
       overdueInvoices.length,
       overdueInvoices.reduce((s, i) => s + i.total, 0)
     ),
+    payrollInsights: payrollInsightsResult.insights,
+    payrollInsightsSource: payrollInsightsResult.source,
     reminderCandidates: reminderCandidates.slice(0, 10).map((inv: Invoice) => ({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,

@@ -2,6 +2,13 @@ import { fail, ok } from "@/lib/api/response";
 import { requireCompanyContext } from "@/lib/api/require-company";
 import { patchInvoiceStatusSchema } from "@/lib/api/invoices/schemas";
 import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
+import {
+  sendInvoiceEmailAction,
+  EmailDeliveryError,
+  EmailNotConfiguredError,
+} from "@/lib/server/send-invoice-email-action";
+
+export const runtime = "nodejs";
 
 const WRITE_ROLES = ["admin", "accountant"] as const;
 
@@ -95,6 +102,40 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       after: { status: parsed.data.status },
     },
   });
+
+  if (parsed.data.status === "sent" && existing.status === "draft") {
+    const { data: historyRows } = await supabase
+      .from("invoice_history")
+      .select("action")
+      .eq("invoice_id", id);
+
+    const alreadySent = (historyRows ?? []).some((h) =>
+      h.action?.startsWith("Invoice sent to")
+    );
+
+    if (!alreadySent) {
+      try {
+        await sendInvoiceEmailAction(
+          supabase,
+          companyId,
+          id,
+          user.id,
+          actorName,
+          "send"
+        );
+      } catch (err) {
+        if (err instanceof EmailNotConfiguredError) {
+          console.warn("[auto-send] Email not configured:", err.message);
+        } else if (err instanceof EmailDeliveryError) {
+          console.warn("[auto-send] Email delivery failed:", err.message);
+        } else if (err instanceof Error && err.message.includes("Client email")) {
+          console.warn("[auto-send] Missing client email:", err.message);
+        } else {
+          console.warn("[auto-send] Unexpected error:", err);
+        }
+      }
+    }
+  }
 
   return ok({ id: row.id, status: row.status });
 }

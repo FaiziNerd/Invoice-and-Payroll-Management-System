@@ -166,6 +166,10 @@ Browser (Next.js App Router)
 - [x] Month-over-month KPI badges
 - [x] Department payroll breakdown chart
 - [x] Invoice aging chart and dashboard CSV/ZIP export
+- [x] AI payroll insights card (LLM with rule-based fallback)
+- [x] Automated invoice email on draft → sent status change
+- [x] Daily cron payment reminders (`/api/cron/invoice-reminders`)
+- [x] Audit logging on HR, template, and salary-slip mutations
 
 ### Multi-Company
 
@@ -216,7 +220,15 @@ npm run dev      # Development server
 npm run build    # Production build
 npm run start    # Production server
 npm run lint     # ESLint
+npm run test:problem-statement  # Bonus feature integration tests
 ```
+
+### Bonus features (email & cron)
+
+- **Auto-send:** Marking an invoice `sent` from `draft` triggers email delivery when Resend is configured (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`).
+- **Cron reminders:** Set `CRON_SECRET` in `.env.local` (and Vercel env). Vercel runs `/api/cron/invoice-reminders` daily at 09:00 UTC via `vercel.json`.
+- **Local cron test:** `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/invoice-reminders`
+- **Payroll insights:** Optional AI keys (xAI/Groq/OpenAI/Anthropic) power the dashboard Payroll Insights card; falls back to rules without keys.
 
 ## Notes
 
