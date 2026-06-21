@@ -121,7 +121,7 @@ export default function EditEmployeePage({
     if (!session) return;
     try {
       await deleteEmployee(id, session.userId, session.name);
-      toast.success("Employee deleted");
+      toast.success("Employee moved to trash");
       router.push("/employees");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete employee");
@@ -250,7 +250,9 @@ export default function EditEmployeePage({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete Employee</DialogTitle>
-              <DialogDescription>Delete {employee.firstName} {employee.lastName}? This cannot be undone.</DialogDescription>
+              <DialogDescription>
+                Move {employee.firstName} {employee.lastName} to trash? You can restore them from the Trash tab.
+              </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowDelete(false)}>Cancel</Button>

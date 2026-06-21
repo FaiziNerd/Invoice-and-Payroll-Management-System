@@ -1,8 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { Pencil, Download } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Download, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
@@ -21,7 +22,17 @@ import { getSlipsByEmployeeId } from "@/lib/repositories/salary-slips";
 import { useStorageData, useCompanyDataReady } from "@/hooks/use-storage-data";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { RoleGate } from "@/components/auth/role-gate";
+import { useAuth } from "@/providers/auth-provider";
+import { deleteEmployee } from "@/lib/repositories/employees";
 import { toast } from "sonner";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -32,6 +43,9 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { session } = useAuth();
+  const [showDelete, setShowDelete] = useState(false);
   const dataReady = useCompanyDataReady();
   const employee = useStorageData(() => getEmployeeById(id), ["employees"]);
   const slips = useStorageData(() => getSlipsByEmployeeId(id), ["salary_slips"]);
@@ -76,6 +90,17 @@ export default function EmployeeDetailPage({
   const deductions = calculateTotalDeductions(salaryStructure);
   const net = calculateNetPay(salaryStructure);
 
+  const handleDelete = async () => {
+    if (!session) return;
+    try {
+      await deleteEmployee(id, session.userId, session.name);
+      toast.success("Employee moved to trash");
+      router.push("/employees");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete employee");
+    }
+  };
+
   const sendPortalInvite = async () => {
     try {
       const res = await fetch("/api/invites", {
@@ -116,6 +141,9 @@ export default function EmployeeDetailPage({
             </Badge>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/employees/${id}/edit`}><Pencil className="h-4 w-4" /> Edit</Link>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)}>
+              <Trash2 className="h-4 w-4" /> Delete
             </Button>
             {!employee.userId && (
               <Button variant="outline" size="sm" onClick={() => void sendPortalInvite()}>
@@ -216,6 +244,21 @@ export default function EmployeeDetailPage({
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={showDelete} onOpenChange={setShowDelete}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Employee</DialogTitle>
+              <DialogDescription>
+                Move {employee.firstName} {employee.lastName} to trash? You can restore them from the Trash tab.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDelete(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={() => void handleDelete()}>Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGate>
   );

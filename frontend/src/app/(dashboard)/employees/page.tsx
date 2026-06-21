@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, X, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -10,26 +10,37 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { calculateNetPay, restoreEmployee } from "@/lib/repositories/employees";
+import { calculateNetPay, restoreEmployee, deleteEmployee } from "@/lib/repositories/employees";
 import { getDepartments } from "@/lib/repositories/departments";
 import { useStorageDataWithLoading, useCompanyDataReady } from "@/hooks/use-storage-data";
 import { usePaginatedList } from "@/hooks/use-paginated-list";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
 import { formatCurrency } from "@/lib/utils";
 import { RoleGate } from "@/components/auth/role-gate";
+import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import type { Employee } from "@/types";
 
 export default function EmployeesPage() {
+  const { session } = useAuth();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [view, setView] = useState<"active" | "trash">("active");
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const companyReady = useCompanyDataReady();
   const {
     items: employees,
@@ -59,6 +70,18 @@ export default function EmployeesPage() {
       return matchesSearch && matchesDept;
     });
   }, [employees, search, deptFilter]);
+
+  const confirmDelete = async () => {
+    if (!session || !deleteTarget) return;
+    try {
+      await deleteEmployee(deleteTarget.id, session.userId, session.name);
+      toast.success("Employee moved to trash");
+      setDeleteTarget(null);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete employee");
+    }
+  };
 
   return (
     <RoleGate roles={["admin", "hr"]}>
@@ -175,24 +198,39 @@ export default function EmployeesPage() {
                   );
                 }
                 return (
-                  <Link key={emp.id} href={`/employees/${emp.id}`}>
-                    <Card className="hover:bg-accent/50 transition-colors h-full">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{emp.firstName} {emp.lastName}</p>
-                            <p className="text-sm text-muted-foreground">{emp.employeeId}</p>
-                          </div>
+                  <Card key={emp.id} className="h-full">
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start gap-2">
+                        <Link href={`/employees/${emp.id}`} className="min-w-0 flex-1 hover:opacity-80">
+                          <p className="font-semibold">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-sm text-muted-foreground">{emp.employeeId}</p>
+                        </Link>
+                        <div className="flex items-center gap-1 shrink-0">
                           <Badge variant={emp.status === "active" ? "success" : "secondary"}>
                             {emp.status}
                           </Badge>
+                          <Button variant="ghost" size="icon" asChild aria-label={`Edit ${emp.firstName} ${emp.lastName}`}>
+                            <Link href={`/employees/${emp.id}/edit`}>
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete ${emp.firstName} ${emp.lastName}`}
+                            onClick={() => setDeleteTarget(emp)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
+                      </div>
+                      <Link href={`/employees/${emp.id}`} className="block hover:opacity-80">
                         <p className="text-sm mt-2">{emp.position}</p>
                         <p className="text-xs text-muted-foreground">{dept?.name}</p>
                         <p className="text-sm font-medium mt-3">Net: {formatCurrency(netPay)}/mo</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                      </Link>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -205,6 +243,21 @@ export default function EmployeesPage() {
             )}
           </>
         )}
+
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Employee</DialogTitle>
+              <DialogDescription>
+                Move <strong>{deleteTarget?.firstName} {deleteTarget?.lastName}</strong> to trash? You can restore them from the Trash tab.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={() => void confirmDelete()}>Delete</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGate>
   );
