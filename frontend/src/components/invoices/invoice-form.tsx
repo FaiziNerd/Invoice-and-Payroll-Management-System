@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClients } from "@/hooks/use-clients";
-import { getActiveTemplates } from "@/lib/repositories/templates";
+import { useActiveTemplates } from "@/hooks/use-templates";
 import { generateId } from "@/lib/utils";
 import { Plus, Trash2, X } from "lucide-react";
 import type { Client, Invoice, InvoiceLineItem } from "@/types";
@@ -50,12 +50,10 @@ export function InvoiceForm({
   onCancel,
 }: InvoiceFormProps) {
   const { clients } = useClients();
-  const templates = getActiveTemplates();
+  const { templates, loading: templatesLoading } = useActiveTemplates();
 
   const [clientId, setClientId] = useState(initialValues?.clientId || "");
-  const [templateId, setTemplateId] = useState(
-    initialValues?.templateId || templates.find((t) => t.isDefault)?.id || templates[0]?.id || ""
-  );
+  const [templateId, setTemplateId] = useState(initialValues?.templateId || "");
   const [taxRate, setTaxRate] = useState(initialValues?.taxRate ?? 10);
   const [dueDate, setDueDate] = useState(
     initialValues?.dueDate ||
@@ -68,6 +66,12 @@ export function InvoiceForm({
 
   const [clientError, setClientError] = useState("");
   const [itemsError, setItemsError] = useState("");
+
+  useEffect(() => {
+    if (initialValues?.templateId || templateId || templates.length === 0) return;
+    const defaultTemplate = templates.find((t) => t.isDefault) ?? templates[0];
+    if (defaultTemplate) setTemplateId(defaultTemplate.id);
+  }, [templates, templateId, initialValues?.templateId]);
 
   const updateItem = (id: string, field: keyof InvoiceLineItem, value: string | number) => {
     setItemsError("");
@@ -136,8 +140,8 @@ export function InvoiceForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="inv-template">Template</Label>
-            <Select value={templateId} onValueChange={setTemplateId}>
-              <SelectTrigger id="inv-template"><SelectValue placeholder="Select template" /></SelectTrigger>
+            <Select value={templateId} onValueChange={setTemplateId} disabled={templatesLoading}>
+              <SelectTrigger id="inv-template"><SelectValue placeholder={templatesLoading ? "Loading templates…" : "Select template"} /></SelectTrigger>
               <SelectContent>
                 {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>

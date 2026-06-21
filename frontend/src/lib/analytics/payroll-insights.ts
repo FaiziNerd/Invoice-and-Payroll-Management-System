@@ -6,6 +6,7 @@ import {
   getMonthTotals,
 } from "@/lib/analytics/dashboard";
 import { callLlmForPayrollInsights } from "@/lib/server/llm-chat";
+import type { DashboardRawData } from "@/lib/analytics/fetch-dashboard-data";
 
 export interface PayrollInsight {
   id: string;
@@ -90,6 +91,41 @@ export function generateRuleBasedPayrollInsights(
   }
 
   return insights.slice(0, 4);
+}
+
+export function buildPayrollInsightsSummary(raw: DashboardRawData) {
+  const monthTotals = getMonthTotals(raw.invoices, raw.payrollRuns);
+  const { current, previous } = getCurrentAndPreviousMonth(monthTotals);
+  const deptData = computeDepartmentPayroll(raw.payrollRuns, raw.employees, raw.departments);
+
+  return {
+    totalRevenue: raw.totalRevenue,
+    totalPayroll: raw.totalPayroll,
+    netMargin: raw.totalRevenue - raw.totalPayroll,
+    payrollMoM: raw.payrollMoM,
+    activeEmployees: raw.employees.filter((e) => e.status === "active").length,
+    processedRuns: raw.payrollRuns.filter((r) => r.status === "paid" || r.status === "processed")
+      .length,
+    topDepartments: deptData.slice(0, 5),
+    currentMonthPayroll: current?.payroll ?? 0,
+    previousMonthPayroll: previous?.payroll ?? 0,
+  };
+}
+
+/** LLM-only path — call from a separate async endpoint so dashboard analytics stays fast. */
+export async function generateAiPayrollInsights(
+  raw: DashboardRawData
+): Promise<PayrollInsightsResult | null> {
+  try {
+    const summary = buildPayrollInsightsSummary(raw);
+    const aiInsights = await callLlmForPayrollInsights(JSON.stringify(summary));
+    if (aiInsights.length > 0) {
+      return { insights: aiInsights.slice(0, 4), source: "ai" };
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export async function generatePayrollInsights(

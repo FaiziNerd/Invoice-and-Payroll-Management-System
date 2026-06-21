@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { getSettings, updateSettings } from "@/lib/repositories/settings";
 import { DEFAULT_COMPANY_PLACEHOLDER } from "@/lib/branding";
-import { getTemplates } from "@/lib/repositories/templates";
+import { useTemplates } from "@/hooks/use-templates";
 import { useAuth } from "@/providers/auth-provider";
 import { useStorageDataWithLoading } from "@/hooks/use-storage-data";
 import { CardGridSkeleton } from "@/components/shared/skeletons";
@@ -29,10 +29,7 @@ export default function SettingsPage() {
     () => getSettings(),
     ["settings"]
   );
-  const { data: templates, isLoading: templatesLoading } = useStorageDataWithLoading(
-    () => getTemplates(),
-    ["templates"]
-  );
+  const { templates, loading: templatesLoading } = useTemplates();
   const isLoading = settingsLoading || templatesLoading;
 
   const [name, setName] = useState(settings.name);

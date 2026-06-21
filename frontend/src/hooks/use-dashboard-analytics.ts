@@ -49,32 +49,87 @@ export function useDashboardAnalytics(enabled: boolean) {
   const [data, setData] = useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
       return;
     }
+
+    let cancelled = false;
+
     void (async () => {
       setLoading(true);
       setError(null);
+      setData(null);
       try {
         const res = await fetch("/api/dashboard/analytics", { credentials: "include" });
         const json = await res.json();
         if (!json.success) {
           throw new Error(json.error?.message ?? "Failed to load dashboard analytics");
         }
-        setData(json.data);
+        if (!cancelled) {
+          setData(json.data);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load dashboard analytics");
-        setData(null);
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load dashboard analytics");
+          setData(null);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [enabled]);
 
-  return { data, loading, error };
+  useEffect(() => {
+    if (!enabled || !data) return;
+
+    let cancelled = false;
+    setAiInsightsLoading(true);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/dashboard/payroll-insights-ai", {
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (cancelled || !json.success) return;
+
+        const aiInsights = json.data?.insights as DashboardAnalytics["payrollInsights"] | null;
+        if (aiInsights?.length && json.data?.source === "ai") {
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  payrollInsights: aiInsights,
+                  payrollInsightsSource: "ai",
+                }
+              : prev
+          );
+        }
+      } catch {
+        // Keep rule-based insights already shown
+      } finally {
+        if (!cancelled) {
+          setAiInsightsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, data?.totalRevenue, data?.totalPayroll]);
+
+  return { data, loading, error, aiInsightsLoading };
 }
 
 export type { DashboardAnalytics };

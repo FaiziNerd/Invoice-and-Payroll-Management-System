@@ -9,6 +9,7 @@ import type { InvoiceFormValues } from "@/components/invoices/invoice-form";
 import { QuickDraftGenerator } from "@/components/invoices/quick-draft-generator";
 import { createInvoice } from "@/lib/repositories/invoices";
 import { getDefaultTemplate } from "@/lib/repositories/templates";
+import { useTemplates } from "@/hooks/use-templates";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { RoleGate } from "@/components/auth/role-gate";
@@ -16,6 +17,7 @@ import { RoleGate } from "@/components/auth/role-gate";
 export default function NewInvoicePage() {
   const router = useRouter();
   const { session } = useAuth();
+  useTemplates();
   const defaultTemplate = getDefaultTemplate();
   const [formKey, setFormKey] = useState(0);
   const [draftValues, setDraftValues] = useState<Partial<InvoiceFormValues> | undefined>();

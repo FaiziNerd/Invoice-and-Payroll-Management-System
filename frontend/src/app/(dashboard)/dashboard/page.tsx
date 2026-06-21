@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const showPayrollWidgets = hasRole("admin", "hr", "accountant");
   const showNetMargin = showInvoiceWidgets && showPayrollWidgets;
   const analyticsEnabled = companyReady && (showInvoiceWidgets || showPayrollWidgets);
-  const { data: analytics, loading: analyticsLoading } = useDashboardAnalytics(analyticsEnabled);
+  const { data: analytics, loading: analyticsLoading, aiInsightsLoading } = useDashboardAnalytics(analyticsEnabled);
   const { clients } = useClients();
 
   const totalRevenue = analytics?.totalRevenue ?? 0;
@@ -519,7 +519,7 @@ export default function DashboardPage() {
                 <Brain className="h-5 w-5 text-primary" />
                 Payroll Insights
                 <Badge variant={payrollInsightsSource === "ai" ? "default" : "secondary"} className="ml-auto text-xs">
-                  {payrollInsightsSource === "ai" ? "AI" : "Rules"}
+                  {payrollInsightsSource === "ai" ? "AI" : aiInsightsLoading ? "Loading…" : "Rules"}
                 </Badge>
               </CardTitle>
             </CardHeader>

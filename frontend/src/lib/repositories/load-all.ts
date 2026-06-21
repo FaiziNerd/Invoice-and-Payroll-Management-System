@@ -3,7 +3,6 @@ import { loadCompaniesFromApi } from "@/lib/repositories/companies";
 import { loadDepartmentsFromApi } from "@/lib/repositories/departments";
 import { resolveOverdueInvoicesFromApi } from "@/lib/repositories/invoices";
 import { loadSettingsFromApi } from "@/lib/repositories/settings";
-import { loadTemplatesFromApi } from "@/lib/repositories/templates";
 
 export const COMPANY_DATA_LOADING_EVENT = "company-data-loading";
 export const COMPANY_DATA_LOADED_EVENT = "company-data-loaded";
@@ -26,20 +25,19 @@ function notifyCompanyDataLoaded(): void {
   window.dispatchEvent(new CustomEvent(COMPANY_DATA_LOADED_EVENT));
 }
 
-/** Preload lightweight company-scoped data after login or company switch. */
+/** Preload company-scoped data after login or company switch (non-blocking for auth UI). */
 export async function loadAllCompanyData(): Promise<void> {
   notifyCompanyDataLoading();
 
   try {
-    await loadCompaniesFromApi();
-    await resolveOverdueInvoicesFromApi();
     await Promise.all([
+      loadCompaniesFromApi(),
       loadClientsFromApi(),
       loadDepartmentsFromApi(),
-      loadTemplatesFromApi(),
       loadSettingsFromApi(),
     ]);
   } finally {
     notifyCompanyDataLoaded();
+    void resolveOverdueInvoicesFromApi().catch(() => {});
   }
 }

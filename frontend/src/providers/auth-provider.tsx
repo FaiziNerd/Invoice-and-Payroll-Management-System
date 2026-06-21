@@ -30,21 +30,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const next = await getSession();
     setSession(next);
     if (next) {
-      await loadAllCompanyData();
+      void loadAllCompanyData();
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    void (async () => {
       const current = await getSession();
       if (!mounted) return;
       setSession(current);
-      if (current) {
-        await loadAllCompanyData();
-      }
       setIsLoading(false);
+      if (current) {
+        void loadAllCompanyData();
+      }
     })();
 
     const supabase = createClient();
@@ -55,10 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(null);
         return;
       }
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      if (event === "SIGNED_IN") {
         const next = await getSession();
         if (mounted) setSession(next);
-        if (next) await loadAllCompanyData();
+        if (next) void loadAllCompanyData();
       }
     });
 
@@ -78,8 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authLogin(email, password);
     if (result) {
       setSession(result);
-      // Session fetch sets the active-company cookie; refresh before loading data
-      await refreshSession();
+      void refreshSession();
       void fetch("/api/auth/login-audit", { method: "POST", credentials: "include" });
       return true;
     }
@@ -113,4 +112,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

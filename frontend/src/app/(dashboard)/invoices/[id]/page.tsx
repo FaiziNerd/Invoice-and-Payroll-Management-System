@@ -49,6 +49,7 @@ import { fetchInvoicePayments, voidInvoice } from "@/lib/repositories/payments";
 import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog";
 import { fetchClientById } from "@/lib/repositories/clients";
 import { getTemplateById } from "@/lib/repositories/templates";
+import { useTemplates } from "@/hooks/use-templates";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
 import type { EmailMode } from "@/lib/invoices/email";
@@ -79,6 +80,8 @@ export default function InvoiceDetailPage({
   const [linkCopied, setLinkCopied] = useState(false);
   const [invoice, setInvoice] = useState(() => getInvoiceById(id));
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
+
+  useTemplates();
 
   const template = invoice ? getTemplateById(invoice.templateId) : undefined;
   const [client, setClient] = useState<Client | undefined>(undefined);
