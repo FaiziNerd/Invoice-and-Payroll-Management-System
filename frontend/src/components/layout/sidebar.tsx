@@ -162,11 +162,11 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 border-r border-sidebar-border bg-sidebar transition-transform md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center border-b border-sidebar-border px-6">
+        <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-6">
           <Link href="/dashboard" className="flex items-center gap-2 text-brand">
             <div className="logo-mark h-8 w-8 text-xs font-semibold">
               IP
@@ -174,7 +174,9 @@ export function Sidebar() {
             <span>{APP_NAME}</span>
           </Link>
         </div>
-        <NavContent />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <NavContent />
+        </div>
       </aside>
     </>
   );

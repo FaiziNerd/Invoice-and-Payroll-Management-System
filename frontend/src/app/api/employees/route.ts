@@ -17,6 +17,8 @@ import {
   parseListParams,
 } from "@/lib/api/pagination";
 import { auditMutation, getActorName } from "@/lib/server/audit-helpers";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { peekNextEmployeeId } from "@/lib/api/employees/numbering";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
@@ -76,11 +78,30 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: employee, error: employeeError } = await supabase
+  const admin = createAdminClient();
+  const employeeCode = parsed.data.employeeId.trim();
+
+  const { data: duplicate } = await admin
+    .from("employees")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("employee_id", employeeCode)
+    .maybeSingle();
+
+  if (duplicate) {
+    const suggested = await peekNextEmployeeId(admin, companyId);
+    return fail(
+      "CONFLICT",
+      `Employee ID "${employeeCode}" is already in use. Try "${suggested}" instead.`,
+      409
+    );
+  }
+
+  const { data: employee, error: employeeError } = await admin
     .from("employees")
     .insert({
       company_id: companyId,
-      ...employeeFieldsToRow(parsed.data),
+      ...employeeFieldsToRow({ ...parsed.data, employeeId: employeeCode }),
     })
     .select(
       "id, company_id, employee_id, first_name, last_name, email, phone, department_id, position, join_date, status, salary_base, user_id, created_at, deleted_at"
@@ -88,6 +109,14 @@ export async function POST(request: Request) {
     .single();
 
   if (employeeError) {
+    if (employeeError.code === "23505") {
+      const suggested = await peekNextEmployeeId(admin, companyId);
+      return fail(
+        "CONFLICT",
+        `Employee ID "${employeeCode}" is already in use. Try "${suggested}" instead.`,
+        409
+      );
+    }
     return fail("INTERNAL_ERROR", employeeError.message, 500);
   }
 
@@ -96,13 +125,13 @@ export async function POST(request: Request) {
 
   let allowanceRows: EmployeeAllowanceRow[] = [];
   if (allowancesPayload.length > 0) {
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("employee_allowances")
       .insert(allowanceFieldsToRows(employee.id, allowancesPayload))
       .select("id, employee_id, name, amount");
 
     if (error) {
-      await supabase.from("employees").delete().eq("id", employee.id).eq("company_id", companyId);
+      await admin.from("employees").delete().eq("id", employee.id).eq("company_id", companyId);
       return fail("INTERNAL_ERROR", error.message, 500);
     }
     allowanceRows = (data ?? []) as EmployeeAllowanceRow[];
@@ -110,13 +139,13 @@ export async function POST(request: Request) {
 
   let deductionRows: EmployeeDeductionRow[] = [];
   if (deductionsPayload.length > 0) {
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("employee_deductions")
       .insert(deductionFieldsToRows(employee.id, deductionsPayload))
       .select("id, employee_id, name, amount");
 
     if (error) {
-      await supabase.from("employees").delete().eq("id", employee.id).eq("company_id", companyId);
+      await admin.from("employees").delete().eq("id", employee.id).eq("company_id", companyId);
       return fail("INTERNAL_ERROR", error.message, 500);
     }
     deductionRows = (data ?? []) as EmployeeDeductionRow[];

@@ -53,6 +53,7 @@ import { useTemplates } from "@/hooks/use-templates";
 import { InvoiceStatusBadge } from "@/components/shared/status-badge";
 import { InvoiceEmailDialog } from "@/components/invoices/invoice-email-dialog";
 import type { EmailMode } from "@/lib/invoices/email";
+import { buildInvoiceShareUrl } from "@/lib/invoices/email-content";
 import { copyTextToClipboard, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -113,6 +114,15 @@ export default function InvoiceDetailPage({
     if (!invoice) return;
     void fetchInvoicePayments(invoice.id).then(setPayments);
   }, [invoice?.id, refreshKey]);
+
+  useEffect(() => {
+    if (!invoice?.shareToken) {
+      setShareUrl("");
+      return;
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+    setShareUrl(buildInvoiceShareUrl(invoice.shareToken, origin));
+  }, [invoice?.shareToken]);
 
   useEffect(() => {
     if (!showQrDialog) setLinkCopied(false);
@@ -442,7 +452,7 @@ export default function InvoiceDetailPage({
               <DialogDescription>Scan QR code or copy the link to share</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
-              <QRCodeSVG value={shareUrl || `/share/invoice/${invoice.shareToken}`} size={200} />
+              <QRCodeSVG value={shareUrl} size={200} />
               <div className="flex w-full gap-2">
                 <Input
                   readOnly

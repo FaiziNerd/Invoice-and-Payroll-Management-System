@@ -59,8 +59,8 @@ export default function SettingsPage() {
         session.name
       );
       toast.success("Organization settings saved");
-    } catch {
-      toast.error("Failed to save settings");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save settings");
     }
   };
 

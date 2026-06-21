@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { getDepartments } from "@/lib/repositories/departments";
 import { createEmployee } from "@/lib/repositories/employees";
+import { createEmployeeSchema } from "@/lib/api/employees/schemas";
 import { useAuth } from "@/providers/auth-provider";
 import { generateId } from "@/lib/utils";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { RoleGate } from "@/components/auth/role-gate";
 
 type FieldErrors = {
+  employeeId?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -36,7 +38,7 @@ export default function NewEmployeePage() {
   const departments = getDepartments();
 
   const [form, setForm] = useState({
-    employeeId: `EMP-${String(getDepartments().length + 4).padStart(3, "0")}`,
+    employeeId: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -47,16 +49,62 @@ export default function NewEmployeePage() {
     baseSalary: 5000,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/employees/next-id", { credentials: "include" })
+      .then((res) => res.json())
+      .then((json: { success?: boolean; data?: { employeeId?: string } }) => {
+        if (cancelled || !json.success || !json.data?.employeeId) return;
+        setForm((prev) =>
+          prev.employeeId.trim() ? prev : { ...prev, employeeId: json.data!.employeeId! }
+        );
+      })
+      .catch(() => {
+        /* keep field editable if suggestion fails */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [allowances, setAllowances] = useState([{ id: generateId(), name: "HRA", amount: 500 }]);
   const [deductions, setDeductions] = useState([{ id: generateId(), name: "Tax", amount: 800 }]);
   const [errors, setErrors] = useState<FieldErrors>({});
 
+  const buildPayload = () => ({
+    employeeId: form.employeeId.trim(),
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
+    email: form.email.trim().toLowerCase(),
+    phone: form.phone.trim(),
+    departmentId: form.departmentId,
+    position: form.position.trim(),
+    joinDate: new Date(form.joinDate).toISOString(),
+    status: "active" as const,
+    salaryStructure: {
+      baseSalary: form.baseSalary,
+      allowances: allowances
+        .filter((a) => a.name.trim())
+        .map(({ name, amount }) => ({ name: name.trim(), amount })),
+      deductions: deductions
+        .filter((d) => d.name.trim())
+        .map(({ name, amount }) => ({ name: name.trim(), amount })),
+    },
+  });
+
   const validate = (): FieldErrors => {
+    const parsed = createEmployeeSchema.safeParse(buildPayload());
+    if (parsed.success) return {};
+
     const errs: FieldErrors = {};
-    if (!form.firstName.trim()) errs.firstName = "First name is required";
-    if (!form.lastName.trim()) errs.lastName = "Last name is required";
-    if (!form.email.trim()) errs.email = "Email is required";
-    if (!form.departmentId) errs.departmentId = "Department is required";
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (field === "employeeId" && !errs.employeeId) errs.employeeId = issue.message;
+      if (field === "firstName" && !errs.firstName) errs.firstName = issue.message;
+      if (field === "lastName" && !errs.lastName) errs.lastName = issue.message;
+      if (field === "email" && !errs.email) errs.email = issue.message;
+      if (field === "departmentId" && !errs.departmentId) errs.departmentId = issue.message;
+    }
     return errs;
   };
 
@@ -68,18 +116,20 @@ export default function NewEmployeePage() {
       setErrors(errs);
       return;
     }
-    const emp = await createEmployee(
-      {
-        ...form,
-        joinDate: new Date(form.joinDate).toISOString(),
-        status: "active",
-        salaryStructure: { baseSalary: form.baseSalary, allowances, deductions },
-      },
-      session.userId,
-      session.name
-    );
-    toast.success("Employee created");
-    router.push(`/employees/${emp.id}`);
+    try {
+      const emp = await createEmployee(buildPayload(), session.userId, session.name);
+      toast.success("Employee created");
+      router.push(`/employees/${emp.id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create employee";
+      if (message.toLowerCase().includes("employee id")) {
+        setErrors((prev) => ({ ...prev, employeeId: message }));
+      } else if (message.toLowerCase().includes("email")) {
+        setErrors((prev) => ({ ...prev, email: message }));
+      } else {
+        toast.error(message);
+      }
+    }
   };
 
   const clearError = (field: keyof FieldErrors) => {
@@ -106,8 +156,17 @@ export default function NewEmployeePage() {
                 <Input
                   id="emp-id"
                   value={form.employeeId}
-                  onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, employeeId: e.target.value });
+                    clearError("employeeId");
+                  }}
+                  className={errors.employeeId ? "border-destructive" : ""}
                 />
+                {errors.employeeId && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <X className="h-3 w-3" />{errors.employeeId}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

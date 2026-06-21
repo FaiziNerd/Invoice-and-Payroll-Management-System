@@ -130,7 +130,7 @@ export async function DELETE(request: Request) {
 
   const { data, error } = await supabase
     .from("company_invites")
-    .update({ revoked_at: new Date().toISOString() })
+    .delete()
     .eq("id", id)
     .eq("company_id", companyId)
     .is("used_at", null)

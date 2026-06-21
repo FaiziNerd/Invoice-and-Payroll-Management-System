@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/employees/mappers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 const EMPLOYEE_SELECT =
@@ -92,7 +93,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   if (Object.keys(updates).length > 0) {
-    const { error } = await supabase
+    const { error } = await createAdminClient()
       .from("employees")
       .update(updates)
       .eq("id", id)
@@ -103,8 +104,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
   }
 
+  const admin = createAdminClient();
+
   if (parsed.data.salaryStructure?.allowances !== undefined) {
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await admin
       .from("employee_allowances")
       .delete()
       .eq("employee_id", id);
@@ -114,7 +117,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 
     if (parsed.data.salaryStructure.allowances.length > 0) {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await admin
         .from("employee_allowances")
         .insert(allowanceFieldsToRows(id, parsed.data.salaryStructure.allowances));
       if (insertError) {
@@ -124,7 +127,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   if (parsed.data.salaryStructure?.deductions !== undefined) {
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await admin
       .from("employee_deductions")
       .delete()
       .eq("employee_id", id);
@@ -134,7 +137,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 
     if (parsed.data.salaryStructure.deductions.length > 0) {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await admin
         .from("employee_deductions")
         .insert(deductionFieldsToRows(id, parsed.data.salaryStructure.deductions));
       if (insertError) {
@@ -201,7 +204,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   void count;
 
-  const { error } = await supabase
+  const { error } = await createAdminClient()
     .from("employees")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)

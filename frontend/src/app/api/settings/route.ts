@@ -4,7 +4,7 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { rowToSettings, settingsFieldsToRow } from "@/lib/api/settings/mappers";
 import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
 
-const WRITE_ROLES = ["admin", "accountant"] as const;
+const WRITE_ROLES = ["admin"] as const;
 
 const updateSettingsSchema = z
   .object({
@@ -70,17 +70,31 @@ export async function PATCH(request: Request) {
     .eq("company_id", companyId)
     .maybeSingle();
 
-  const { data, error } = await supabase
-    .from("organization_settings")
-    .upsert(
-      {
+  const rowPatch = settingsFieldsToRow(parsed.data);
+
+  let data;
+  let error;
+
+  if (before) {
+    ({ data, error } = await supabase
+      .from("organization_settings")
+      .update(rowPatch)
+      .eq("company_id", companyId)
+      .select("company_id, name, address, default_template_id, updated_at")
+      .single());
+  } else {
+    const name = parsed.data.name?.trim() || "My Company";
+    ({ data, error } = await supabase
+      .from("organization_settings")
+      .insert({
         company_id: companyId,
-        ...settingsFieldsToRow(parsed.data),
-      },
-      { onConflict: "company_id" }
-    )
-    .select("company_id, name, address, default_template_id, updated_at")
-    .single();
+        name,
+        address: rowPatch.address ?? null,
+        default_template_id: rowPatch.default_template_id ?? null,
+      })
+      .select("company_id, name, address, default_template_id, updated_at")
+      .single());
+  }
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);

@@ -339,6 +339,7 @@ as $$
   from public.company_members
   where user_id = auth.uid()
     and company_id = p_company_id
+    and coalesce(status, 'active') = 'active'
   limit 1;
 $$;
 
@@ -544,6 +545,11 @@ create policy "Admins delete company invites"
   on public.company_invites for delete to authenticated
   using (public.user_company_role(company_id) = 'admin');
 
+create policy "Admins revoke company invites"
+  on public.company_invites for update to authenticated
+  using (public.user_company_role(company_id) = 'admin')
+  with check (public.user_company_role(company_id) = 'admin');
+
 -- ORGANIZATION SETTINGS
 create policy "Members read company settings"
   on public.organization_settings for select to authenticated
@@ -626,30 +632,54 @@ create policy "Members read company employees"
   on public.employees for select to authenticated
   using (public.user_has_company(company_id));
 
-create policy "Admins and HR modify employees"
-  on public.employees for all to authenticated
+create policy "Admins and HR insert employees"
+  on public.employees for insert to authenticated
+  with check (public.user_company_role(company_id) in ('admin', 'hr'));
+
+create policy "Admins and HR update employees"
+  on public.employees for update to authenticated
   using (public.user_company_role(company_id) in ('admin', 'hr'))
   with check (public.user_company_role(company_id) in ('admin', 'hr'));
+
+create policy "Admins and HR delete employees"
+  on public.employees for delete to authenticated
+  using (public.user_company_role(company_id) in ('admin', 'hr'));
 
 -- EMPLOYEE ALLOWANCES
 create policy "Members read allowances"
   on public.employee_allowances for select to authenticated
   using (public.user_has_company(public.employee_company_id(employee_id)));
 
-create policy "Admins and HR modify allowances"
-  on public.employee_allowances for all to authenticated
+create policy "Admins and HR insert allowances"
+  on public.employee_allowances for insert to authenticated
+  with check (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
+
+create policy "Admins and HR update allowances"
+  on public.employee_allowances for update to authenticated
   using (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'))
   with check (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
+
+create policy "Admins and HR delete allowances"
+  on public.employee_allowances for delete to authenticated
+  using (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
 
 -- EMPLOYEE DEDUCTIONS
 create policy "Members read deductions"
   on public.employee_deductions for select to authenticated
   using (public.user_has_company(public.employee_company_id(employee_id)));
 
-create policy "Admins and HR modify deductions"
-  on public.employee_deductions for all to authenticated
+create policy "Admins and HR insert deductions"
+  on public.employee_deductions for insert to authenticated
+  with check (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
+
+create policy "Admins and HR update deductions"
+  on public.employee_deductions for update to authenticated
   using (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'))
   with check (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
+
+create policy "Admins and HR delete deductions"
+  on public.employee_deductions for delete to authenticated
+  using (public.user_company_role(public.employee_company_id(employee_id)) in ('admin', 'hr'));
 
 -- PAYROLL RUNS
 create policy "Members read company payroll runs"
