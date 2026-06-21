@@ -100,6 +100,10 @@ export async function PATCH(request: Request) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
+  if (!data) {
+    return fail("INTERNAL_ERROR", "Settings update did not return a row", 500);
+  }
+
   const actorName = await getActorName(supabase, user.id);
   await auditMutation(supabase, {
     companyId,
