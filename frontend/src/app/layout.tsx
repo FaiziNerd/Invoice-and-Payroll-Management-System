@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ToastProvider } from "@/providers/toast-provider";
 import { APP_DESCRIPTION, APP_TITLE } from "@/lib/branding";
-
-const inter = Inter({ subsets: ["latin"] });
+import { fontSans, fontVariables } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: APP_TITLE,
@@ -21,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${fontVariables} ${fontSans.className} antialiased`}>
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>

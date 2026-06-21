@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Employee, SalarySlip } from "@/types";
@@ -86,7 +87,12 @@ export default function EmployeePortalPage() {
         <CardContent className="pt-6">
           <h3 className="mb-4 font-medium">Salary slips</h3>
           {salarySlips.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No salary slips yet.</p>
+            <EmptyState
+              icon="receipt"
+              title="No salary slips yet"
+              description="Your salary slips will appear here after payroll is processed."
+              className="py-8"
+            />
           ) : (
             <Table>
               <TableHeader>

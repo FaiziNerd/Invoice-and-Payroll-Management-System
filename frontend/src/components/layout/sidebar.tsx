@@ -108,7 +108,7 @@ export function Sidebar() {
       {visibleGroups.map((group, groupIndex) => (
         <div key={group.label}>
           {groupIndex > 0 && <Separator className="my-3" />}
-          <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-1 px-3 text-label text-muted-foreground">
             {group.label}
           </p>
           {group.items.map((item) => {
@@ -123,10 +123,10 @@ export function Sidebar() {
                 onClick={() => setMobileOpen(false)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                   active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/15"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -162,13 +162,13 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 border-r bg-card transition-transform md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-64 border-r border-sidebar-border bg-sidebar transition-transform md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center border-b px-6">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs">
+        <div className="flex h-14 items-center border-b border-sidebar-border px-6">
+          <Link href="/dashboard" className="flex items-center gap-2 text-brand">
+            <div className="logo-mark h-8 w-8 text-xs font-semibold">
               IP
             </div>
             <span>{APP_NAME}</span>

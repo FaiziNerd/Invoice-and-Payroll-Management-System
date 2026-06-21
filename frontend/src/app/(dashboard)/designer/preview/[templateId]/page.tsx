@@ -80,7 +80,7 @@ export default function TemplatePreviewPage({
       <div className="space-y-6">
         <div className="flex flex-wrap justify-between items-center gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Preview: {template.name}</h1>
+            <h1 className="text-2xl">Preview: {template.name}</h1>
             <div className="flex gap-2 mt-1">
               {!template.isActive && <Badge variant="secondary">Draft — review before publishing</Badge>}
               {template.isActive && <Badge>Active</Badge>}

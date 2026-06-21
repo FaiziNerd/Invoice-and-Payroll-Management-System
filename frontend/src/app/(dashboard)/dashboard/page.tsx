@@ -53,8 +53,14 @@ import type { Invoice } from "@/types";
 
 function ChartPlaceholder({ message }: { message: string }) {
   return (
-    <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
-      {message}
+    <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-center">
+      <div className="empty-state-art h-20 w-20">
+        <span className="empty-state-ring" />
+        <span className="empty-state-icon h-10 w-10 rounded-xl">
+          <FileText className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -66,7 +72,7 @@ function MoMBadge({ change }: { change: number | null }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 text-xs font-medium ${
-        positive ? "text-green-600 dark:text-green-400" : "text-destructive"
+        positive ? "text-success" : "text-destructive"
       }`}
     >
       <Icon className="h-3 w-3" />
@@ -290,29 +296,33 @@ export default function DashboardPage() {
       {!isLoading ? (
         <KpiSkeleton />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
           {showInvoiceWidgets && (
             <>
-              <Card>
+              <Card className="border-border/80">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <div className="kpi-icon">
+                    <DollarSign className="h-4 w-4" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                  <div className="text-stat">{formatCurrency(totalRevenue)}</div>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">{paidInvoicesCount} paid invoices</p>
                     <MoMBadge change={revenueMoM} />
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-border/80">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  <div className="kpi-icon bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(outstanding)}</div>
+                  <div className="text-stat">{formatCurrency(outstanding)}</div>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">
                       {overdueInvoices.length} overdue, {sentInvoices.length} sent
@@ -324,13 +334,15 @@ export default function DashboardPage() {
             </>
           )}
           {showPayrollWidgets && (
-            <Card>
+            <Card className="border-border/80">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Payroll Expense</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <div className="kpi-icon">
+                  <Users className="h-4 w-4" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalPayroll)}</div>
+                <div className="text-stat">{formatCurrency(totalPayroll)}</div>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-xs text-muted-foreground">{payrollTrend.length} recent payroll runs</p>
                   <MoMBadge change={payrollMoM} />
@@ -339,13 +351,15 @@ export default function DashboardPage() {
             </Card>
           )}
           {showNetMargin && (
-            <Card>
+            <Card className="border-border/80">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Net Margin</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <div className="kpi-icon bg-emerald-500/10 text-success">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-stat">
                   {formatCurrency(totalRevenue - totalPayroll)}
                 </div>
                 <div className="flex items-center justify-between mt-1">
@@ -360,7 +374,7 @@ export default function DashboardPage() {
 
       {showInvoiceWidgets && (
         <div>
-          <h2 className="text-base font-semibold mb-4 pb-2 border-b">Insights</h2>
+          <h2 className="section-heading mb-4 pb-2 border-b border-border/60">Insights</h2>
         </div>
       )}
 
@@ -415,7 +429,7 @@ export default function DashboardPage() {
                       className="flex items-center justify-between rounded-lg border px-3 py-2"
                     >
                       <div>
-                        <Link href={`/invoices/${inv.id}`} className="text-sm font-medium text-primary hover:underline">
+                        <Link href={`/invoices/${inv.id}`} className="text-code text-sm font-medium text-primary hover:underline">
                           {inv.invoiceNumber}
                         </Link>
                         <p className="text-xs text-muted-foreground">
@@ -446,7 +460,7 @@ export default function DashboardPage() {
         {showInvoiceWidgets && (
           <Card className="lg:col-span-2">
             <CardHeader>
-              <h2 className="text-base font-semibold pb-1 border-b">Revenue</h2>
+              <h2 className="section-heading pb-2 border-b border-border/60">Revenue</h2>
             </CardHeader>
           </Card>
         )}
@@ -547,7 +561,7 @@ export default function DashboardPage() {
         {showPayrollWidgets && (
           <Card className="lg:col-span-2">
             <CardHeader>
-              <h2 className="text-base font-semibold pb-1 border-b">Payroll</h2>
+              <h2 className="section-heading pb-2 border-b border-border/60">Payroll</h2>
             </CardHeader>
           </Card>
         )}
@@ -630,7 +644,7 @@ export default function DashboardPage() {
                     return (
                       <TableRow key={inv.id}>
                         <TableCell>
-                          <Link href={`/invoices/${inv.id}`} className="text-primary hover:underline">
+                          <Link href={`/invoices/${inv.id}`} className="text-code text-primary hover:underline">
                             {inv.invoiceNumber}
                           </Link>
                         </TableCell>
@@ -659,7 +673,7 @@ export default function DashboardPage() {
                 return (
                   <div key={inv.id} className="rounded-lg border p-4">
                     <div className="flex justify-between">
-                      <Link href={`/invoices/${inv.id}`} className="font-medium text-primary">
+                      <Link href={`/invoices/${inv.id}`} className="text-code font-medium text-primary">
                         {inv.invoiceNumber}
                       </Link>
                       <InvoiceStatusBadge status={inv.status as Invoice["status"]} />

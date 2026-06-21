@@ -19,11 +19,11 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/80 bg-card/80 px-4 backdrop-blur-md md:px-6">
       <div className="ml-10 flex min-w-0 items-center gap-3 md:ml-0">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">Welcome back,</p>
-          <p className="truncate font-semibold">{session?.name}</p>
+          <p className="text-label text-muted-foreground">Welcome back</p>
+          <p className="truncate font-semibold tracking-tight">{session?.name}</p>
         </div>
         <CompanySwitcher />
       </div>

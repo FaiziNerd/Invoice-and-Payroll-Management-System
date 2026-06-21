@@ -272,7 +272,7 @@ export default function InvoicesPage() {
                         return (
                           <TableRow key={inv.id}>
                             <TableCell>
-                              <Link href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+                              <Link href={`/invoices/${inv.id}`} className="text-code font-medium text-primary hover:underline">
                                 {inv.invoiceNumber}
                               </Link>
                             </TableCell>
@@ -291,9 +291,9 @@ export default function InvoicesPage() {
                   {paged.map((inv) => {
                     const client = clients.find((c) => c.id === inv.clientId);
                     return (
-                      <Link key={inv.id} href={`/invoices/${inv.id}`} className="block rounded-lg border p-4 hover:bg-accent">
+                      <Link key={inv.id} href={`/invoices/${inv.id}`} className="interactive-lift block rounded-xl border border-border/80 p-4 hover:bg-accent/50">
                         <div className="flex justify-between">
-                          <span className="font-medium">{inv.invoiceNumber}</span>
+                          <span className="text-code font-medium">{inv.invoiceNumber}</span>
                           <InvoiceStatusBadge status={inv.status} />
                         </div>
                         <p className="text-sm text-muted-foreground">{client?.name}</p>

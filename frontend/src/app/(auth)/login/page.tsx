@@ -34,7 +34,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center surface-auth p-4">
       <div className="w-full max-w-md space-y-6">
         <Link
           href="/"
@@ -45,14 +45,14 @@ export default function LoginPage() {
         </Link>
 
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
+          <div className="logo-mark mx-auto mb-4 h-12 w-12 text-sm font-semibold">
             IP
           </div>
-          <h1 className="text-2xl font-bold">{APP_NAME}</h1>
+          <h1 className="text-2xl">{APP_NAME}</h1>
           <p className="text-muted-foreground">Invoice &amp; Payroll Management</p>
         </div>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>Sign in</CardTitle>
             <CardDescription>Enter your credentials to access the platform</CardDescription>

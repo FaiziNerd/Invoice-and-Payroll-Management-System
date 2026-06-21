@@ -187,11 +187,11 @@ export default function PayrollDetailPage({
         <div className="grid gap-4 sm:grid-cols-2">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Total Gross</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold">{formatCurrency(run.totalGross)}</p></CardContent>
+            <CardContent><p className="text-stat">{formatCurrency(run.totalGross)}</p></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Total Net</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(run.totalNet)}</p></CardContent>
+            <CardContent><p className="text-stat text-green-600 dark:text-green-400">{formatCurrency(run.totalNet)}</p></CardContent>
           </Card>
         </div>
 
