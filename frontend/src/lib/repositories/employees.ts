@@ -3,6 +3,15 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/fetch";
 import { notifyDataChange } from "@/lib/data/events";
 import type { PaginatedResponse } from "@/lib/api/pagination";
 
+type SalaryStructureInput = Omit<SalaryStructure, "allowances" | "deductions"> & {
+  allowances: Array<{ name: string; amount: number }>;
+  deductions: Array<{ name: string; amount: number }>;
+};
+
+type EmployeeInput = Omit<Employee, "id" | "createdAt" | "salaryStructure"> & {
+  salaryStructure: SalaryStructureInput;
+};
+
 type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: { code: string; message: string } };
@@ -84,7 +93,7 @@ export function getActiveEmployees(): Employee[] {
 }
 
 export async function createEmployee(
-  data: Omit<Employee, "id" | "createdAt">,
+  data: EmployeeInput,
   _userId: string,
   _userName: string
 ): Promise<Employee> {
@@ -96,7 +105,7 @@ export async function createEmployee(
 
 export async function updateEmployee(
   id: string,
-  data: Partial<Omit<Employee, "id" | "createdAt">>,
+  data: Partial<EmployeeInput>,
   _userId: string,
   _userName: string
 ): Promise<Employee | null> {
