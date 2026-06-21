@@ -3,6 +3,7 @@ import { requireCompanyContext } from "@/lib/api/require-company";
 import { updateDepartmentSchema } from "@/lib/api/departments/schemas";
 import { rowToDepartment } from "@/lib/api/departments/mappers";
 import { auditMutation, buildDiff, getActorName } from "@/lib/server/audit-helpers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const WRITE_ROLES = ["admin", "hr"] as const;
 
@@ -70,24 +71,26 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     updates.description = parsed.data.description || null;
   }
 
-  const { data, error } = await supabase
+  const admin = createAdminClient();
+
+  const { data: updated, error } = await admin
     .from("departments")
     .update(updates)
     .eq("id", id)
     .eq("company_id", companyId)
-    .select("id, company_id, name, description, created_at")
-    .maybeSingle();
+    .select("id, company_id, name, description, created_at");
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
+  const data = updated?.[0];
   if (!data) {
     return fail("NOT_FOUND", "Department not found", 404);
   }
 
   const actorName = await getActorName(supabase, user.id, "User");
-  await auditMutation(supabase, {
+  await auditMutation(admin, {
     companyId,
     userId: user.id,
     userName: actorName,
@@ -138,24 +141,25 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (deptError) return fail("INTERNAL_ERROR", deptError.message, 500);
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
 
-  const { data, error } = await supabase
+  const admin = createAdminClient();
+
+  const { data: deleted, error } = await admin
     .from("departments")
     .delete()
     .eq("id", id)
     .eq("company_id", companyId)
-    .select("id")
-    .maybeSingle();
+    .select("id");
 
   if (error) {
     return fail("INTERNAL_ERROR", error.message, 500);
   }
 
-  if (!data) {
+  if (!deleted?.[0]) {
     return fail("NOT_FOUND", "Department not found", 404);
   }
 
   const actorName = await getActorName(supabase, user.id, "User");
-  await auditMutation(supabase, {
+  await auditMutation(admin, {
     companyId,
     userId: user.id,
     userName: actorName,
